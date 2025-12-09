@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="title">防災モード</title>
+  <link rel="stylesheet" href="css/bousaion.css">
+  <style>
+      /* Googleマップナビボタンのスタイル */
+      #googleMapsNaviButtonDisaster {
+          background-color: #4285F4;
+          color: white;
+          margin-top: 10px;
+          display: none;
+      }
+      #googleMapsNaviButtonDisaster:hover {
+          background-color: #3367D6;
+      }
+  </style>
+</head>
+<body>
+  
+  <header>
+    <div class="header-top">
+      <h1 id="headerTitle">防災モード</h1>
+      <div class="lang-buttons">
+        <button onclick="setLangJ('ja')">日本語</button>
+        <button onclick="setLangJ('en')">English</button>
+      </div>
+    </div>
+    <nav>
+      <button onclick="location.href='bousaiJ.html'" id="switchMode">通常モードに切替</button>
+    </nav>
+    <p class="alert" id="alertMsg">現在、防災モードが有効です。避難情報と災害警報にご注意ください。</p>
+  </header>
+
+  <main>
+    <div id="map"></div>
+    
+    <section class="directions-section">
+      <h2 id="directionsTitle">経路案内</h2>
+      <div class="directions-input-group">
+        <label for="startDisaster" id="startLabel">出発地:</label>
+        <input type="text" id="startDisaster" placeholder="出発地を入力">
+        <button onclick="getCurrentLocationForDirectionsDisaster('startDisaster')" id="currentLocationStartButtonDisaster" class="small-button">現在地</button>
+      </div>
+      <div class="directions-input-group">
+        <label for="endDisaster" id="endLabel">目的地:</label>
+        <input type="text" id="endDisaster" placeholder="目的地を入力">
+        <button onclick="getCurrentLocationForDirectionsDisaster('endDisaster')" id="currentLocationEndButtonDisaster" class="small-button">現在地</button>
+      </div>
+      <div class="directions-input-group">
+        <label for="travelModeDisaster" id="travelModeLabel">移動手段:</label>
+        <select id="travelModeDisaster">
+          <option value="DRIVING" id="modeDriving">車</option>
+          <option value="WALKING" id="modeWalking">徒歩</option>
+          <option value="BICYCLING" id="modeBicycling">自転車</option>
+          <option value="TRANSIT" id="modeTransit">電車・公共交通機関</option>
+        </select>
+      </div>
+      <div class="directions-buttons">
+        <button onclick="calcRouteDisaster()" id="getDirectionsButton">経路を検索</button>
+        <button onclick="clearDirectionsDisaster()" id="clearDirectionsButton">経路をクリア</button>
+      </div>
+      <!-- Google Maps ナビゲーションボタン -->
+      <div class="directions-buttons">
+        <button onclick="openGoogleMapsNaviDisaster()" id="googleMapsNaviButtonDisaster">🗺️ Googleマップでナビ開始</button>
+      </div>
+      <div id="directionsPanelDisaster" class="directions-panel"></div>
+    </section>
+
+    <section class="filter-section">
+      <h2 id="disasterFilterTitle">災害タイプで絞り込む</h2>
+      <div class="filter-buttons-grid">
+        <button onclick="filterDisasterMarkers(['fire_station', 'school', 'community_center'], 'fire')" id="filterFireShelters">火災避難所</button>
+        <button onclick="filterDisasterMarkers(['community_center', 'school'], 'tsunami')" id="filterTsunamiShelters">津波避難所</button>
+        <button onclick="filterDisasterMarkers(['community_center', 'school'], 'volcano')" id="filterVolcanoShelters">火山噴火避難所</button>
+        <button onclick="filterDisasterMarkers(['community_center', 'school', 'hospital'], 'hurricane')" id="filterHurricaneShelters">ハリケーン避難所</button>
+        <button onclick="filterDisasterMarkers(['community_center', 'school', 'fire_station', 'hospital'], 'all')" id="filterAllDisasters">全て表示</button>
+        <button onclick="filterDisasterMarkers([], 'hideAll')" id="filterHideAllDisasters">非表示</button>
+      </div>
+    </section>
+
+    <section class="info-section">
+     <h2 id="infoTitle">重要情報</h2>
+      <ul>
+       <li id="shelter"></li>
+       <li id="disasterInfo1"></li>
+       <li id="disasterInfo2"></li>
+       <li id="disasterInfo3"></li>
+      </ul>
+    </section>
+
+    <section class="legend-section">
+      <h2 id="legendTitle">ピクトグラム凡例</h2>
+      <ul>
+       <li id="legendHospital"></li>
+       <li id="legendOtherShelter"></li> <!-- 統合された凡例 -->
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    防災ピクトマップA班
+  </footer>
+
+  <script src="js/langJ.js"></script>
+  <script src="js/map_disasterJ.js"></script>
+  <!-- API Key変更 -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDO4wBgHnvBDQA8-xO3JfkLflLi9vwpY8U&callback=initMapDisaster&libraries=places,marker,routes,geometry"></script>
+
+</body>
+</html>
