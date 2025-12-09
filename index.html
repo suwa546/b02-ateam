@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="title">防災×観光ピクトマップ</title>
+  
+  <link rel="stylesheet" href="css/bousai.css">
+  <style>
+    .his-menu {
+        padding: 8px 10px;
+        border-radius: 20px;
+        border: 1px solid #ccc;
+        font-size: 0.9em;
+        background-color: #fff;
+        color: #1e3d7b;
+        cursor: pointer;
+    }
+    /* Googleマップナビボタンのスタイル */
+    #googleMapsNaviButtonTour {
+        background-color: #4285F4;
+        color: white;
+        margin-top: 10px;
+        display: none; /* 初期状態は非表示 */
+    }
+    #googleMapsNaviButtonTour:hover {
+        background-color: #3367D6;
+    }
+  </style>
+</head>
+<body>
+  
+  <header>
+    <div class="header-top">
+      <h1 id="headerTitle">防災×観光ピクトマップ</h1>
+      <div class="lang-buttons">
+        <button onclick="setLangTourJ('ja')">日本語</button>
+        <button onclick="setLangTourJ('en')">English</button>
+      </div>
+    </div>
+    <nav>
+      <select class="his-menu" onchange="if(this.value) window.open(this.value, '_blank')">
+          <option value="">HISおすすめハワイツアー</option>
+          <option value="https://www.his-j.com/kaigai/hawaii/">ハワイ旅行・ツアー総合</option>
+          <option value="https://activities.his-j.com/ct/gourmet/hnl01/">ハワイ グルメ・レストラン予約</option>
+          <option value="https://activities.his-j.com/TourList/O60/">オアフ島 オプショナルツアー</option>
+      </select>
+      <button onclick="location.href='bousaionJ.html'" id="switchMode">防災モードに切替</button>
+    </nav>
+  </header>
+
+  <main>
+    <div id="map"></div>
+    
+    <section class="directions-section">
+      <h2 id="directionsTitleTour">経路案内</h2>
+      <div class="directions-input-group">
+        <label for="startTour" id="startLabelTour">出発地:</label>
+        <input type="text" id="startTour" placeholder="出発地を入力">
+        <button onclick="getCurrentLocationForDirectionsTour('startTour')" id="currentLocationStartButtonTour" class="small-button">現在地</button>
+      </div>
+      <div class="directions-input-group">
+        <label for="endTour" id="endLabelTour">目的地:</label>
+        <input type="text" id="endTour" placeholder="目的地を入力">
+        <button onclick="getCurrentLocationForDirectionsTour('endTour')" id="currentLocationEndButtonTour" class="small-button">現在地</button>
+      </div>
+      <div class="directions-input-group">
+        <label for="travelModeTour" id="travelModeLabelTour">移動手段:</label>
+        <select id="travelModeTour">
+          <option value="DRIVING" id="modeDrivingTour">車</option>
+          <option value="WALKING" id="modeWalkingTour">徒歩</option>
+          <option value="BICYCLING" id="modeBicyclingTour">自転車</option>
+          <option value="TRANSIT" id="modeTransitTour">電車・公共交通機関</option>
+        </select>
+      </div>
+      <div class="directions-buttons">
+        <button onclick="calcRouteTour()" id="getDirectionsButtonTour">経路を検索</button>
+        <button onclick="clearDirectionsTour()" id="clearDirectionsButtonTour">経路をクリア</button>
+      </div>
+      <!-- Google Maps ナビゲーションボタン -->
+      <div class="directions-buttons">
+        <button onclick="openGoogleMapsNaviTour()" id="googleMapsNaviButtonTour">🗺️ Googleマップでナビ開始</button>
+      </div>
+      <div id="directionsPanelTour" class="directions-panel"></div>
+    </section>
+
+    <section class="filter-section">
+      <h2 id="filterTitle">表示カテゴリを絞り込む</h2>
+      <div class="filter-buttons-grid">
+        <button onclick="filterTourMarkers(['restaurant', 'cafe'])" id="filterFoodDrink">飲食店・カフェ</button>
+        <button onclick="filterTourMarkers(['tourist_attraction', 'point_of_interest'])" id="filterTouristAttraction">観光名所</button>
+        <button onclick="filterTourMarkers(['store'])" id="filterStore">ショッピング</button>
+        <button onclick="filterTourMarkers(['lodging'])" id="filterLodging">宿泊施設</button>
+        <button onclick="filterTourMarkers(['restaurant', 'cafe', 'tourist_attraction', 'lodging', 'store', 'point_of_interest'])" id="filterAll">全て表示</button>
+        <button onclick="filterTourMarkers([])" id="filterHideAll">非表示</button>
+      </div>
+      <h2 id="ratingFilterTitle" style="margin-top: 20px;">評価で絞り込む（飲食店・カフェのみ）</h2>
+      <div class="filter-buttons-grid">
+        <!-- 5.0を含めるために上限を5.1に設定 -->
+        <button onclick="filterByRatingTour(4.5, 5.1)" id="rating4_5_5_0">評価 4.5以上</button>
+        <button onclick="filterByRatingTour(4.0, 4.5)" id="rating4_0_4_5">評価 4.0～4.5未満</button>
+        <button onclick="filterByRatingTour(3.5, 4.0)" id="rating3_5_4_0">評価 3.5～4.0未満</button>
+        <button onclick="filterByRatingTour(0.0, 3.5)" id="rating0_0_3_5">評価 3.5未満</button>
+        <!-- 特殊値(-1)を使用して「全て」を識別 -->
+        <button onclick="filterByRatingTour(-1, -1)" id="ratingAll">全ての評価</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    防災ピクトマップA班 / Supported by HIS
+  </footer>
+
+  <script src="js/lang_tourJ.js"></script>
+  <script src="js/map_tourJ.js"></script>
+  <!-- API Key変更 -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDO4wBgHnvBDQA8-xO3JfkLflLi9vwpY8U&callback=initMapTour&libraries=places,marker,routes,geometry"></script>
+
+</body>
+</html>
