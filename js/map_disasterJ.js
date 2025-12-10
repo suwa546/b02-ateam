@@ -11,6 +11,19 @@ let disasterDirectionsService;
 let disasterDirectionsRenderer;
 let disasterGeocoder;
 
+// ハワイ島（ビッグアイランド）の火山避難所指定リスト
+// ArcGISのマップに基づき、主要な避難所名やキーワードを設定します。
+// 必要に応じて実際の施設名に合わせて追記・修正してください。
+const BIG_ISLAND_VOLCANO_SHELTERS = [
+    "Pahoa Community Center", // パホア・コミュニティセンター
+    "Keaau High School",      // ケアウ・ハイスクール
+    "Keaau Armory",           // ケアウ・アーマリー
+    "Hilo High School",       // ヒロ・ハイスクール
+    "Waiakea High School",    // ワイアケア・ハイスクール
+    "Kailua Park",            // カイルア・パーク (コナ)
+    "Kealakehe High School"   // ケアラケヘ・ハイスクール
+];
+
 async function initMapDisaster() {
     const { Map } = await google.maps.importLibrary("maps");
     const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
@@ -18,6 +31,7 @@ async function initMapDisaster() {
     const { DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("routes");
     const { Geocoder } = await google.maps.importLibrary("geocoding");
     
+    // 初期表示を中心に設定（ハワイ全体が見えるように少しズームを調整しても良いですが、元の設定を維持）
     const initialLat = 21.3069;
     const initialLon = -157.8583;
     const initialZoom = 13;
@@ -164,13 +178,15 @@ function getPlaceDetailsDisaster(placeId) {
     });
 }
 
-// フィルタリングロジック（距離判定追加）
+// フィルタリングロジック（距離判定追加 + 火山避難所の特別条件）
 function shouldDisplayPlace(place, filterType) {
     if (!place.geometry || !place.geometry.location) return false;
     
+    const placeLat = place.geometry.location.lat();
+    const placeLng = place.geometry.location.lng();
+    
     // 南側の海岸線からの距離を計算（簡易的に緯度 21.27 を海岸線とする）
-    // 正確には computeDistanceBetween で緯度21.27の地点との距離を測る
-    const coastPoint = new google.maps.LatLng(21.27, place.geometry.location.lng());
+    const coastPoint = new google.maps.LatLng(21.27, placeLng);
     const distanceToCoast = google.maps.geometry.spherical.computeDistanceBetween(place.geometry.location, coastPoint); // メートル単位
     const distKm = distanceToCoast / 1000;
 
@@ -179,23 +195,32 @@ function shouldDisplayPlace(place, filterType) {
     switch (filterType) {
         case 'fire':
             // 森林火災: 沿岸から10km以内 (海に近い方)
-            // 対象施設: 消防署, 学校, 公民館
             return (placeTypes.includes('fire_station') || placeTypes.includes('school') || placeTypes.includes('community_center')) 
                    && distKm <= 10;
         
         case 'tsunami':
             // 津波: 沿岸から10km離れた場所 (内陸)
-            // 対象施設: 公民館, 学校
             return (placeTypes.includes('community_center') || placeTypes.includes('school')) 
                    && distKm > 10;
         
         case 'volcano':
-            // 火山: 条件なし（全表示）
-            return placeTypes.includes('community_center') || placeTypes.includes('school');
+            // 火山噴火避難所の特別ロジック
+            
+            // ハワイ島（ビッグアイランド）の緯度経度境界ボックス（概算）
+            // 緯度: 約18.9 ~ 20.3, 経度: 約-156.1 ~ -154.8
+            const isBigIsland = (placeLat >= 18.9 && placeLat <= 20.35 && placeLng >= -156.1 && placeLng <= -154.8);
+
+            if (isBigIsland) {
+                // ハワイ島の場合: 指定リストに含まれる避難所のみ表示
+                const name = place.name || "";
+                return BIG_ISLAND_VOLCANO_SHELTERS.some(shelterName => name.includes(shelterName));
+            } else {
+                // その他の島の場合: 通常通り全ての避難所（学校・公民館）を表示
+                return placeTypes.includes('community_center') || placeTypes.includes('school');
+            }
         
         case 'hurricane':
             // ハリケーン: 沿岸から5km離れた場所
-            // 対象施設: 公民館, 学校, 病院
             return (placeTypes.includes('community_center') || placeTypes.includes('school') || placeTypes.includes('hospital'))
                    && distKm > 5;
         
@@ -210,19 +235,19 @@ function shouldDisplayPlace(place, filterType) {
     }
 }
 
-// ピン作成ロジック（病院とその他避難所に統合）
+// ピン作成ロジック
 async function createDisasterMarker(place) {
     if (!place.geometry || !place.geometry.location) return;
     const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
     
     let categoryName = '避難所';
     let bgColor = '#28a745'; // 緑 (避難所)
-    let glyphContent = "避"; // 避難所のマーク代わり
+    let glyphContent = "避"; 
 
     if (place.types.includes('hospital')) {
         bgColor = '#007bff'; // 青 (病院)
         categoryName = '病院';
-        glyphContent = "＋"; // 病院マーク
+        glyphContent = "＋"; 
     }
 
     const pin = new PinElement({
@@ -292,7 +317,6 @@ function calcRouteDisaster() {
     disasterDirectionsService.route(request, (result, status) => {
         if (status === 'OK') {
             disasterDirectionsRenderer.setDirections(result);
-            // 音声案内（Googleマップ連携）ボタンを表示
             document.getElementById('googleMapsNaviButtonDisaster').style.display = 'inline-block';
         } else {
             console.error('Directions request failed:', status, result);
@@ -309,7 +333,6 @@ function clearDirectionsDisaster() {
     document.getElementById('googleMapsNaviButtonDisaster').style.display = 'none';
 }
 
-// Googleマップでナビを開始する関数 (防災モード用)
 function openGoogleMapsNaviDisaster() {
     const start = document.getElementById('startDisaster').value;
     const end = document.getElementById('endDisaster').value;
