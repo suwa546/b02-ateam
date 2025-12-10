@@ -12,17 +12,45 @@ let disasterDirectionsRenderer;
 let disasterGeocoder;
 
 // ハワイ島（ビッグアイランド）の火山避難所指定リスト
-// ArcGISのマップに基づき、主要な避難所名やキーワードを設定します。
-// 必要に応じて実際の施設名に合わせて追記・修正してください。
 const BIG_ISLAND_VOLCANO_SHELTERS = [
-    "Pahoa Community Center", // パホア・コミュニティセンター
-    "Keaau High School",      // ケアウ・ハイスクール
-    "Keaau Armory",           // ケアウ・アーマリー
-    "Hilo High School",       // ヒロ・ハイスクール
-    "Waiakea High School",    // ワイアケア・ハイスクール
-    "Kailua Park",            // カイルア・パーク (コナ)
-    "Kealakehe High School"   // ケアラケヘ・ハイスクール
+    "Pahoa Community Center",
+    "Keaau High School",
+    "Keaau Armory",
+    "Hilo High School",
+    "Waiakea High School",
+    "Kailua Park",
+    "Kealakehe High School"
 ];
+
+// フィルタタイプとボタンIDの対応表
+const filterButtonIds = {
+    'fire': 'filterFireShelters',
+    'tsunami': 'filterTsunamiShelters',
+    'volcano': 'filterVolcanoShelters',
+    'hurricane': 'filterHurricaneShelters',
+    'all': 'filterAllDisasters',
+    'hideAll': 'filterHideAllDisasters'
+};
+
+// ボタンのスタイルを更新する関数
+function updateFilterButtonStyles(activeType) {
+    // 全てのボタンから active-filter クラスを削除
+    Object.values(filterButtonIds).forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.classList.remove('active-filter');
+        }
+    });
+
+    // 選択されたボタンに active-filter クラスを追加
+    const activeId = filterButtonIds[activeType];
+    if (activeId) {
+        const activeBtn = document.getElementById(activeId);
+        if (activeBtn) {
+            activeBtn.classList.add('active-filter');
+        }
+    }
+}
 
 async function initMapDisaster() {
     const { Map } = await google.maps.importLibrary("maps");
@@ -31,7 +59,6 @@ async function initMapDisaster() {
     const { DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("routes");
     const { Geocoder } = await google.maps.importLibrary("geocoding");
     
-    // 初期表示を中心に設定（ハワイ全体が見えるように少しズームを調整しても良いですが、元の設定を維持）
     const initialLat = 21.3069;
     const initialLon = -157.8583;
     const initialZoom = 13;
@@ -55,6 +82,9 @@ async function initMapDisaster() {
     disasterDirectionsService = new DirectionsService();
     disasterDirectionsRenderer = new DirectionsRenderer({ map: mapDisaster, panel: document.getElementById('directionsPanelDisaster') });
     disasterGeocoder = new Geocoder();
+
+    // 初期表示時は「全て表示」ボタンを選択状態にする
+    updateFilterButtonStyles('all');
 
     function drawUserLocationCircleDisaster(center) {
         if (userLocationCircleDisaster) {
@@ -127,6 +157,8 @@ async function initMapDisaster() {
             processedDisasterPlaceIds.clear();
             searchPlacesDisaster(userCurrentLocationDisaster, 2000, shelterTypes);
             drawUserLocationCircleDisaster(userCurrentLocationDisaster);
+            // 現在地に戻ったときはフィルタを「全て」にリセットするのも良いが、
+            // ここでは現在のフィルタ状態を維持するか、必要なら updateFilterButtonStyles('all') を呼ぶ
         } else { console.warn('現在地が取得できませんでした。'); }
     });
     mapDisaster.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(returnButton);
@@ -178,49 +210,39 @@ function getPlaceDetailsDisaster(placeId) {
     });
 }
 
-// フィルタリングロジック（距離判定追加 + 火山避難所の特別条件）
 function shouldDisplayPlace(place, filterType) {
     if (!place.geometry || !place.geometry.location) return false;
     
     const placeLat = place.geometry.location.lat();
     const placeLng = place.geometry.location.lng();
     
-    // 南側の海岸線からの距離を計算（簡易的に緯度 21.27 を海岸線とする）
     const coastPoint = new google.maps.LatLng(21.27, placeLng);
-    const distanceToCoast = google.maps.geometry.spherical.computeDistanceBetween(place.geometry.location, coastPoint); // メートル単位
+    const distanceToCoast = google.maps.geometry.spherical.computeDistanceBetween(place.geometry.location, coastPoint); 
     const distKm = distanceToCoast / 1000;
 
     const placeTypes = place.types || [];
 
     switch (filterType) {
         case 'fire':
-            // 森林火災: 沿岸から10km以内 (海に近い方)
             return (placeTypes.includes('fire_station') || placeTypes.includes('school') || placeTypes.includes('community_center')) 
                    && distKm <= 10;
         
         case 'tsunami':
-            // 津波: 沿岸から10km離れた場所 (内陸)
             return (placeTypes.includes('community_center') || placeTypes.includes('school')) 
                    && distKm > 10;
         
         case 'volcano':
-            // 火山噴火避難所の特別ロジック
-            
-            // ハワイ島（ビッグアイランド）の緯度経度境界ボックス（概算）
-            // 緯度: 約18.9 ~ 20.3, 経度: 約-156.1 ~ -154.8
+            // ハワイ島（ビッグアイランド）の判定
             const isBigIsland = (placeLat >= 18.9 && placeLat <= 20.35 && placeLng >= -156.1 && placeLng <= -154.8);
 
             if (isBigIsland) {
-                // ハワイ島の場合: 指定リストに含まれる避難所のみ表示
                 const name = place.name || "";
                 return BIG_ISLAND_VOLCANO_SHELTERS.some(shelterName => name.includes(shelterName));
             } else {
-                // その他の島の場合: 通常通り全ての避難所（学校・公民館）を表示
                 return placeTypes.includes('community_center') || placeTypes.includes('school');
             }
         
         case 'hurricane':
-            // ハリケーン: 沿岸から5km離れた場所
             return (placeTypes.includes('community_center') || placeTypes.includes('school') || placeTypes.includes('hospital'))
                    && distKm > 5;
         
@@ -235,17 +257,16 @@ function shouldDisplayPlace(place, filterType) {
     }
 }
 
-// ピン作成ロジック
 async function createDisasterMarker(place) {
     if (!place.geometry || !place.geometry.location) return;
     const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
     
     let categoryName = '避難所';
-    let bgColor = '#28a745'; // 緑 (避難所)
+    let bgColor = '#28a745'; 
     let glyphContent = "避"; 
 
     if (place.types.includes('hospital')) {
-        bgColor = '#007bff'; // 青 (病院)
+        bgColor = '#007bff'; 
         categoryName = '病院';
         glyphContent = "＋"; 
     }
@@ -288,6 +309,10 @@ function clearDisasterMarkers() {
 function filterDisasterMarkers(selectedTypes, filterType) {
     clearDisasterMarkers();
     currentDisasterFilter = filterType;
+    
+    // ボタンのスタイルを更新
+    updateFilterButtonStyles(filterType);
+
     for (const place of allDisasterPlaces) {
         if (shouldDisplayPlace(place, filterType)) {
             createDisasterMarker(place);
