@@ -346,4 +346,30 @@ footer {
     .directions-buttons {
         flex-direction: column;
     }
+
+}
+/* css/bousaion.css の末尾に追加 */
+
+/* 選択中のフィルタボタンのスタイル（基本） */
+.filter-buttons-grid button.active-filter {
+    background-color: #ffffff !important; /* 背景を白に */
+    color: #dc3545 !important;            /* 文字をテーマカラー（赤）に */
+    border: 2px solid #dc3545;            /* 太い枠線 */
+    font-weight: bold;
+    transform: scale(1.05);               /* 少し大きくする */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* 「全て表示」ボタンの選択状態 */
+.filter-buttons-grid button#filterAllDisasters.active-filter {
+    background-color: #ffffff !important;
+    color: #e0a800 !important;            /* 文字を黄色（オレンジ寄り）に */
+    border: 2px solid #ffc107;
+}
+
+/* 「非表示」ボタンの選択状態 */
+.filter-buttons-grid button#filterHideAllDisasters.active-filter {
+    background-color: #ffffff !important;
+    color: #5a6268 !important;            /* 文字をグレーに */
+    border: 2px solid #6c757d;
 }
