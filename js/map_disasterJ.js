@@ -12,14 +12,25 @@ let disasterDirectionsRenderer;
 let disasterGeocoder;
 
 // ハワイ島（ビッグアイランド）の火山避難所指定リスト
+// ArcGISおよびハワイ郡の避難所マップに基づく主要避難所リスト
 const BIG_ISLAND_VOLCANO_SHELTERS = [
-    "Pahoa Community Center",
-    "Keaau High School",
-    "Keaau Armory",
-    "Hilo High School",
-    "Waiakea High School",
-    "Kailua Park",
-    "Kealakehe High School"
+    "Pahoa Community Center",       // パホア・コミュニティセンター
+    "Pahoa Neighborhood Facility",  // パホア近隣施設
+    "Keaau High School",            // ケアウ高校
+    "Keaau Armory",                 // ケアウ・アーマリー
+    "Herbert Shipman Park",         // ハーバート・シップマン・パーク（ケアウ・アーマリーの所在地）
+    "Hilo High School",             // ヒロ高校
+    "Waiakea High School",          // ワイアケア高校
+    "Kailua Park",                  // カイルア・パーク
+    "Kailua District Park",         // カイルア地区公園（コナ）
+    "Kealakehe High School",        // ケアラケヘ高校
+    "Robert Herkes Gymnasium",      // ロバート・ハーケス体育館 (Pahala)
+    "Pahala Community Center",      // パハラ・コミュニティセンター
+    "Naalehu Community Center",     // ナアレフ・コミュニティセンター
+    "Naalehu Elementary School",    // ナアレフ小学校
+    "Mountain View Elementary School", // マウンテンビュー小学校
+    "Honokaa High School",          // ホノカア高校
+    "Pahoa High School"             // パホア高校
 ];
 
 // フィルタタイプとボタンIDの対応表
@@ -34,7 +45,6 @@ const filterButtonIds = {
 
 // ボタンのスタイルを更新する関数
 function updateFilterButtonStyles(activeType) {
-    // 全てのボタンから active-filter クラスを削除
     Object.values(filterButtonIds).forEach(id => {
         const btn = document.getElementById(id);
         if (btn) {
@@ -42,7 +52,6 @@ function updateFilterButtonStyles(activeType) {
         }
     });
 
-    // 選択されたボタンに active-filter クラスを追加
     const activeId = filterButtonIds[activeType];
     if (activeId) {
         const activeBtn = document.getElementById(activeId);
@@ -83,7 +92,6 @@ async function initMapDisaster() {
     disasterDirectionsRenderer = new DirectionsRenderer({ map: mapDisaster, panel: document.getElementById('directionsPanelDisaster') });
     disasterGeocoder = new Geocoder();
 
-    // 初期表示時は「全て表示」ボタンを選択状態にする
     updateFilterButtonStyles('all');
 
     function drawUserLocationCircleDisaster(center) {
@@ -102,7 +110,8 @@ async function initMapDisaster() {
         });
     }
     
-    const shelterTypes = ['community_center', 'school', 'fire_station', 'hospital'];
+    // 検索カテゴリを拡張：公園(park)、体育館(gym)、公共施設(local_government_office)を追加
+    const shelterTypes = ['community_center', 'school', 'fire_station', 'hospital', 'park', 'gym', 'local_government_office'];
     
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -157,8 +166,6 @@ async function initMapDisaster() {
             processedDisasterPlaceIds.clear();
             searchPlacesDisaster(userCurrentLocationDisaster, 2000, shelterTypes);
             drawUserLocationCircleDisaster(userCurrentLocationDisaster);
-            // 現在地に戻ったときはフィルタを「全て」にリセットするのも良いが、
-            // ここでは現在のフィルタ状態を維持するか、必要なら updateFilterButtonStyles('all') を呼ぶ
         } else { console.warn('現在地が取得できませんでした。'); }
     });
     mapDisaster.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(returnButton);
@@ -186,6 +193,7 @@ function searchPlacesDisaster(center, radius, types) {
         const request = { location: center, radius: radius, type: type };
         disasterPlacesService.nearbySearch(request, (results, status) => {
             if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+                // 結果が指定タイプのいずれかを含むかチェック
                 const filteredResults = results.filter(place => types.some(t => place.types.includes(t)));
                 for (const place of filteredResults) {
                     if (place.place_id && !processedDisasterPlaceIds.has(place.place_id)) {
@@ -224,10 +232,12 @@ function shouldDisplayPlace(place, filterType) {
 
     switch (filterType) {
         case 'fire':
+            // 森林火災: 沿岸から10km以内
             return (placeTypes.includes('fire_station') || placeTypes.includes('school') || placeTypes.includes('community_center')) 
                    && distKm <= 10;
         
         case 'tsunami':
+            // 津波: 沿岸から10km以遠
             return (placeTypes.includes('community_center') || placeTypes.includes('school')) 
                    && distKm > 10;
         
@@ -237,17 +247,26 @@ function shouldDisplayPlace(place, filterType) {
 
             if (isBigIsland) {
                 const name = place.name || "";
+                // 名前リストと照合（部分一致）
                 return BIG_ISLAND_VOLCANO_SHELTERS.some(shelterName => name.includes(shelterName));
             } else {
+                // その他の島: 学校とコミュニティセンターを表示
                 return placeTypes.includes('community_center') || placeTypes.includes('school');
             }
         
         case 'hurricane':
+            // ハリケーン: 沿岸から5km以遠 (病院も含む)
             return (placeTypes.includes('community_center') || placeTypes.includes('school') || placeTypes.includes('hospital'))
                    && distKm > 5;
         
         case 'all':
-            return placeTypes.includes('community_center') || placeTypes.includes('school') || placeTypes.includes('fire_station') || placeTypes.includes('hospital');
+            // 全て表示: 指定カテゴリのいずれかに一致すればOK
+            // 公園や体育館などは明示的に「全て」のときには避難所として適切か判断が難しいため、
+            // リストにある重要なもの（Armory等）は表示したいが、単なる公園は除外するなど調整可能。
+            // ここでは主要な避難所タイプを表示。
+            return placeTypes.includes('community_center') || placeTypes.includes('school') || 
+                   placeTypes.includes('fire_station') || placeTypes.includes('hospital') ||
+                   (isBigIslandPlace(placeLat, placeLng) && BIG_ISLAND_VOLCANO_SHELTERS.some(s => place.name.includes(s))); // ハワイ島ならリストにある施設は必ず表示
         
         case 'hideAll':
             return false;
@@ -255,6 +274,11 @@ function shouldDisplayPlace(place, filterType) {
         default:
             return true;
     }
+}
+
+// 補助関数: ハワイ島かどうか判定
+function isBigIslandPlace(lat, lng) {
+    return (lat >= 18.9 && lat <= 20.35 && lng >= -156.1 && lng <= -154.8);
 }
 
 async function createDisasterMarker(place) {
@@ -270,6 +294,8 @@ async function createDisasterMarker(place) {
         categoryName = '病院';
         glyphContent = "＋"; 
     }
+    // ハワイ島の火山避難所リストにあるものは、特別にラベルを変えるなどの処理も可能ですが、
+    // ここでは統一して「避難所（緑）」とします。
 
     const pin = new PinElement({
         background: bgColor,
@@ -309,10 +335,8 @@ function clearDisasterMarkers() {
 function filterDisasterMarkers(selectedTypes, filterType) {
     clearDisasterMarkers();
     currentDisasterFilter = filterType;
-    
-    // ボタンのスタイルを更新
     updateFilterButtonStyles(filterType);
-
+    
     for (const place of allDisasterPlaces) {
         if (shouldDisplayPlace(place, filterType)) {
             createDisasterMarker(place);
