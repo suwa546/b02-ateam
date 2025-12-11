@@ -6,7 +6,6 @@
   <title id="title">防災モード</title>
   <link rel="stylesheet" href="css/bousaion.css">
   <style>
-      /* Googleマップナビボタンのスタイル */
       #googleMapsNaviButtonDisaster {
           background-color: #4285F4;
           color: white;
@@ -70,6 +69,13 @@
 
     <section class="filter-section">
       <h2 id="disasterFilterTitle">災害タイプで絞り込む</h2>
+      
+      <!-- 現在の絞り込み状態を大きく表示 -->
+      <div class="current-filter-status">
+          <span id="currentFilterLabel">現在表示中:</span>
+          <strong id="currentFilterName" style="color: #dc3545; font-size: 1.2em; display:block; margin-top:5px;">全て表示</strong>
+      </div>
+
       <div class="filter-buttons-grid">
         <button onclick="filterDisasterMarkers([], 'tsunami')" id="filterTsunamiShelters">津波避難所 (ハザードマップ表示)</button>
         <button onclick="filterDisasterMarkers([], 'volcano')" id="filterVolcanoShelters">火山避難所 (ハワイ島のみ)</button>
@@ -79,22 +85,34 @@
       </div>
     </section>
 
+    <!-- ハザードマップ凡例専用セクション (津波モード時のみ表示) -->
+    <section class="hazard-info-section" id="hazardSection" style="display:none; background-color:#fff0f0; border:1px solid #ffcccc;">
+      <h2 id="hazardMapTitle" style="color:#d9534f;">ハザードマップ凡例</h2>
+      <div class="hazard-legend-content" style="display:flex; align-items:center;">
+           <span class="hazard-box tsunami-zone"></span> 
+           <span id="hazardLegendText" style="font-weight:bold;">津波浸水想定区域（危険エリア）</span>
+      </div>
+    </section>
+
     <section class="info-section">
-     <h2 id="infoTitle">重要情報</h2>
+     <h2 id="infoTitle">重要情報・公式リンク</h2>
       <ul>
        <li id="shelter"></li>
-       <li id="disasterInfo1"></li>
+       <!-- 公式リンク表示エリア -->
+       <li id="officialLinkItem" style="margin-top: 15px; padding-top:10px; border-top:1px dashed #ccc;">
+           <!-- JSで動的に挿入 -->
+       </li>
       </ul>
     </section>
 
     <section class="legend-section">
-      <h2 id="legendTitle">ピクトグラム凡例</h2>
+      <h2 id="legendTitle">マップアイコン凡例</h2>
       <ul>
-       <li id="legendHospital"></li>
-       <li id="legendOtherShelter"></li>
-       <li id="legendHazard" class="hazard-legend-item">
-           <span class="hazard-box tsunami-zone"></span> 
-           <span>津波浸水想定区域（危険エリア）</span>
+       <li id="legendHospital">
+           <!-- JSで画像タグを挿入 -->
+       </li>
+       <li id="legendOtherShelter">
+           <!-- JSで画像タグを挿入 -->
        </li>
       </ul>
     </section>
@@ -106,10 +124,8 @@
   </footer>
 
   <script src="js/langJ.js"></script>
-  <!-- ★ここでデータファイルを読み込む -->
   <script src="js/tsunami_data.js"></script>
   <script src="js/map_disasterJ.js"></script>
-  
   <!-- API Keyはご自身のものを使用してください -->
   <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDO4wBgHnvBDQA8-xO3JfkLflLi9vwpY8U&callback=initMapDisaster&libraries=places,marker,routes,geometry"></script>
 
