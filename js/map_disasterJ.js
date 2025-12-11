@@ -2,7 +2,7 @@
 
 let mapDisaster;
 let disasterMarkers = [];
-let allDisasterPlaces = [];
+let allDisasterPlaces = []; 
 let disasterPlacesService;
 let userCurrentLocationDisaster = null;
 let userLocationCircleDisaster;
@@ -10,22 +10,47 @@ let disasterInfoWindow;
 let disasterDirectionsService;
 let disasterDirectionsRenderer;
 let disasterGeocoder;
-let exclusionPolygons = []; // 除外判定用のポリゴン配列
+let exclusionPolygons = []; // 津波除外判定用のポリゴン
 
-// ■ 火山避難所データ（ハワイ島） - 固定リスト
-const VOLCANO_SHELTER_DATA = [
-    { name: "Pahoa Community Center", lat: 19.5033, lng: -154.9535 },
-    { name: "Keaau High School", lat: 19.6416, lng: -155.0425 },
-    { name: "Keaau Armory", lat: 19.6380, lng: -155.0450 },
-    { name: "Hilo High School", lat: 19.7208, lng: -155.0933 },
-    { name: "Waiakea High School", lat: 19.6995, lng: -155.0830 },
-    { name: "Old Kona Airport (Kailua Park)", lat: 19.6450, lng: -156.0050 },
-    { name: "Kealakehe High School", lat: 19.6675, lng: -156.0120 },
-    { name: "Ka'u District Gym", lat: 19.1950, lng: -155.4750 },
-    { name: "Pahala Community Center", lat: 19.2020, lng: -155.4780 },
-    { name: "Honokaa High School", lat: 20.0760, lng: -155.4650 },
-    { name: "Mountain View Elementary", lat: 19.5510, lng: -155.1110 },
-    { name: "Sure Foundation Church", lat: 19.5760, lng: -155.0190 }
+// ■ 固定避難所・病院リスト
+// API検索漏れを防ぐため、各島の主要施設を登録
+const FIXED_SHELTER_DATA = [
+    // --- オアフ島：主要病院 ---
+    { name: "The Queen's Medical Center", lat: 21.3072, lng: -157.8556, island: "Oahu", type: "hospital" },
+    { name: "Straub Medical Center", lat: 21.3045, lng: -157.8496, island: "Oahu", type: "hospital" },
+    { name: "Kapiolani Medical Center", lat: 21.3015, lng: -157.8396, island: "Oahu", type: "hospital" },
+    { name: "Kaiser Permanente Moanalua Medical Center", lat: 21.3575, lng: -157.8943, island: "Oahu", type: "hospital" },
+    { name: "Adventist Health Castle", lat: 21.3853, lng: -157.7562, island: "Oahu", type: "hospital" },
+    { name: "Pali Momi Medical Center", lat: 21.3860, lng: -157.9427, island: "Oahu", type: "hospital" },
+    { name: "The Queen's Medical Center - West Oahu", lat: 21.3486, lng: -158.0305, island: "Oahu", type: "hospital" },
+    // --- オアフ島：主要避難所 ---
+    { name: "Hawaii Convention Center", lat: 21.2905, lng: -157.8365, island: "Oahu", type: "shelter" },
+    { name: "Neal S. Blaisdell Center", lat: 21.3000, lng: -157.8500, island: "Oahu", type: "shelter" },
+    { name: "Leilehua High School", lat: 21.5000, lng: -158.0700, island: "Oahu", type: "shelter" },
+    { name: "Farrington High School", lat: 21.3280, lng: -157.8730, island: "Oahu", type: "shelter" },
+    { name: "McKinley High School", lat: 21.2980, lng: -157.8470, island: "Oahu", type: "shelter" },
+    // --- ハワイ島 ---
+    { name: "Hilo Medical Center", lat: 19.7150, lng: -155.1080, island: "Hawaii", type: "hospital" },
+    { name: "Kona Community Hospital", lat: 19.5330, lng: -155.9330, island: "Hawaii", type: "hospital" },
+    { name: "Pahoa Community Center", lat: 19.5033, lng: -154.9535, island: "Hawaii", type: "shelter" },
+    { name: "Keaau High School", lat: 19.6416, lng: -155.0425, island: "Hawaii", type: "shelter" },
+    { name: "Hilo High School", lat: 19.7208, lng: -155.0933, island: "Hawaii", type: "shelter" },
+    { name: "Waiakea High School", lat: 19.6995, lng: -155.0830, island: "Hawaii", type: "shelter" },
+    { name: "Old Kona Airport (Kailua Park)", lat: 19.6450, lng: -156.0050, island: "Hawaii", type: "shelter" },
+    { name: "Kealakehe High School", lat: 19.6675, lng: -156.0120, island: "Hawaii", type: "shelter" },
+    { name: "Ka'u District Gym", lat: 19.1950, lng: -155.4750, island: "Hawaii", type: "shelter" },
+    { name: "Honokaa High School", lat: 20.0760, lng: -155.4650, island: "Hawaii", type: "shelter" },
+    // --- マウイ島 ---
+    { name: "Maui Memorial Medical Center", lat: 20.8850, lng: -156.4850, island: "Maui", type: "hospital" },
+    { name: "Maui High School", lat: 20.8753, lng: -156.4633, island: "Maui", type: "shelter" },
+    { name: "Baldwin High School", lat: 20.8833, lng: -156.4917, island: "Maui", type: "shelter" },
+    { name: "Lahaina Civic Center", lat: 20.9100, lng: -156.6800, island: "Maui", type: "shelter" },
+    { name: "King Kekaulike High School", lat: 20.8500, lng: -156.3300, island: "Maui", type: "shelter" },
+    // --- カウアイ島 ---
+    { name: "Wilcox Medical Center", lat: 21.9800, lng: -159.3700, island: "Kauai", type: "hospital" },
+    { name: "Kauai High School", lat: 21.9700, lng: -159.3600, island: "Kauai", type: "shelter" },
+    { name: "Kapaa High School", lat: 22.0800, lng: -159.3200, island: "Kauai", type: "shelter" },
+    { name: "Island School", lat: 21.9600, lng: -159.3900, island: "Kauai", type: "shelter" }
 ];
 
 const filterButtonIds = {
@@ -54,11 +79,11 @@ async function initMapDisaster() {
     const { PlacesService, Autocomplete } = await google.maps.importLibrary("places");
     const { DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("routes");
     const { Geocoder } = await google.maps.importLibrary("geocoding");
-    // containsLocationを使うためにgeometryライブラリが必要
     
-    const initialLat = 21.3069;
-    const initialLon = -157.8583;
-    const initialZoom = 13;
+    // 初期表示：オアフ島中心
+    const initialLat = 21.48; 
+    const initialLon = -157.95;
+    const initialZoom = 10; 
     
     mapDisaster = new Map(document.getElementById('map'), {
         center: { lat: initialLat, lng: initialLon },
@@ -72,13 +97,9 @@ async function initMapDisaster() {
         clickableIcons: false,
     });
 
-    // ★ ハザードマップデータの読み込みとポリゴン変換処理
     if (typeof tsunamiData !== 'undefined') {
-        // 1. 表示用データレイヤー
         mapDisaster.data.addGeoJson(tsunamiData);
         mapDisaster.data.setStyle({ visible: false });
-
-        // 2. 判定用ポリゴンの作成 (containsLocation用)
         processGeoJsonToPolygons(tsunamiData);
     } else {
         console.warn("ハザードマップデータ(tsunamiData)が読み込まれていません。");
@@ -94,16 +115,15 @@ async function initMapDisaster() {
 
     updateFilterButtonStyles('all');
 
-    // ★ 現在地マーカー（青色に変更）
     function drawUserLocationCircleDisaster(center) {
         if (userLocationCircleDisaster) {
             userLocationCircleDisaster.setMap(null);
         }
         userLocationCircleDisaster = new google.maps.Circle({
-            strokeColor: '#4285F4', // 青
+            strokeColor: '#4285F4',
             strokeOpacity: 0.8,
             strokeWeight: 2,
-            fillColor: '#4285F4', // 青
+            fillColor: '#4285F4',
             fillOpacity: 0.35,
             map: mapDisaster,
             center: center,
@@ -116,22 +136,17 @@ async function initMapDisaster() {
             async (position) => {
                 const pos = { lat: position.coords.latitude, lng: position.coords.longitude };
                 userCurrentLocationDisaster = pos;
-                mapDisaster.setCenter(pos); mapDisaster.setZoom(14);
+                mapDisaster.setCenter(pos); mapDisaster.setZoom(13);
                 drawUserLocationCircleDisaster(pos);
                 searchPlacesDisaster(pos, 5000);
             },
             async (error) => {
-                const initialCenter = mapDisaster.getCenter();
-                userCurrentLocationDisaster = initialCenter;
-                drawUserLocationCircleDisaster(initialCenter);
-                searchPlacesDisaster(initialCenter, 5000);
+                // オアフ島中心で検索
+                searchPlacesDisaster({ lat: 21.3069, lng: -157.8583 }, 5000);
             }
         );
     } else {
-        const initialCenter = mapDisaster.getCenter();
-        userCurrentLocationDisaster = initialCenter;
-        drawUserLocationCircleDisaster(initialCenter);
-        searchPlacesDisaster(initialCenter, 5000);
+        searchPlacesDisaster({ lat: 21.3069, lng: -157.8583 }, 5000);
     }
     
     const searchInput = document.createElement('input');
@@ -145,14 +160,12 @@ async function initMapDisaster() {
     autocomplete.addListener('place_changed', () => {
         const place = autocomplete.getPlace();
         if (!place.geometry || !place.geometry.location) { return; }
-        if (place.geometry.viewport) { mapDisaster.fitBounds(place.geometry.viewport); } else { mapDisaster.setCenter(place.geometry.location); mapDisaster.setZoom(15); }
+        if (place.geometry.viewport) { mapDisaster.fitBounds(place.geometry.viewport); } else { mapDisaster.setCenter(place.geometry.location); mapDisaster.setZoom(14); }
         
-        if (currentDisasterFilter !== 'volcano') {
-            clearDisasterMarkers();
-            allDisasterPlaces = [];
-            processedDisasterPlaceIds.clear();
-            searchPlacesDisaster(place.geometry.location, 5000);
-        }
+        clearDisasterMarkers();
+        allDisasterPlaces = [];
+        processedDisasterPlaceIds.clear();
+        searchPlacesDisaster(place.geometry.location, 5000);
     });
     
     const returnButton = document.createElement('button');
@@ -174,11 +187,12 @@ async function initMapDisaster() {
     mapDisaster.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(returnButton);
     
     mapDisaster.addListener('idle', () => {
-        if (currentDisasterFilter === 'volcano') return;
-        const zoomLevel = mapDisaster.getZoom();
-        if (zoomLevel >= 12) {
-            const newCenter = mapDisaster.getCenter();
-            searchPlacesDisaster(newCenter, 5000);
+        if (currentDisasterFilter !== 'volcano') {
+            const zoomLevel = mapDisaster.getZoom();
+            if (zoomLevel >= 11) {
+                const newCenter = mapDisaster.getCenter();
+                searchPlacesDisaster(newCenter, 5000);
+            }
         }
     });
 
@@ -188,14 +202,11 @@ async function initMapDisaster() {
     new Autocomplete(endInputDisaster, { types: ['geocode', 'establishment'] }).bindTo('bounds', mapDisaster);
 }
 
-// GeoJSONデータをGoogle Maps Polygonオブジェクトに変換する処理
 function processGeoJsonToPolygons(geoJson) {
     if (!geoJson || !geoJson.features) return;
-
     geoJson.features.forEach(feature => {
         const geometry = feature.geometry;
         if (!geometry) return;
-
         if (geometry.type === 'Polygon') {
             createPolygonFromCoords(geometry.coordinates);
         } else if (geometry.type === 'MultiPolygon') {
@@ -207,11 +218,20 @@ function processGeoJsonToPolygons(geoJson) {
 }
 
 function createPolygonFromCoords(coordinates) {
-    // GeoJSONの座標は [lng, lat] なので {lat, lng} に変換
-    // Polygonの場合、coordinates[0] が外周
     const path = coordinates[0].map(coord => ({ lat: coord[1], lng: coord[0] }));
     const polygon = new google.maps.Polygon({ paths: path });
     exclusionPolygons.push(polygon);
+}
+
+function isLocationInsideHazardZone(lat, lng) {
+    if (exclusionPolygons.length === 0) return false;
+    const latLng = new google.maps.LatLng(lat, lng);
+    for (let i = 0; i < exclusionPolygons.length; i++) {
+        if (google.maps.geometry.poly.containsLocation(latLng, exclusionPolygons[i])) {
+            return true;
+        }
+    }
+    return false;
 }
 
 let processedDisasterPlaceIds = new Set();
@@ -219,19 +239,19 @@ let currentDisasterFilter = 'all';
 
 function searchPlacesDisaster(center, radius) {
     if (!disasterPlacesService) return;
-    
-    // ホテル等は除外し、基本的な避難所のみ検索
     const request = {
         location: center,
         radius: radius,
-        keyword: "school OR community center OR park OR gym OR hospital" 
+        keyword: "school OR community center OR park OR gym OR hospital OR church OR medical center OR clinic" 
     };
+    
     disasterPlacesService.nearbySearch(request, (results, status) => {
         if (status === google.maps.places.PlacesServiceStatus.OK && results) {
             for (const place of results) {
                 if (place.place_id && !processedDisasterPlaceIds.has(place.place_id)) {
                     processedDisasterPlaceIds.add(place.place_id);
-                    allDisasterPlaces.push(place); 
+                    allDisasterPlaces.push(place);
+                    
                     if (shouldDisplayPlace(place, currentDisasterFilter)) {
                         createDisasterMarker(place);
                     }
@@ -239,35 +259,47 @@ function searchPlacesDisaster(center, radius) {
             }
         }
     });
+
+    if (currentDisasterFilter === 'all' || currentDisasterFilter === 'tsunami') {
+        FIXED_SHELTER_DATA.forEach(data => {
+            // 津波モード時でも固定リストは信頼して表示（または病院のみ）
+            // 修正：避難所も含めて固定リストは常に表示する（指定避難所のため安全とみなす）
+            createManualMarker(data);
+        });
+    }
 }
 
 function shouldDisplayPlace(place, filterType) {
     if (!place.geometry || !place.geometry.location) return false;
     const placeTypes = place.types || [];
+    const lat = place.geometry.location.lat();
+    const lng = place.geometry.location.lng();
     
     const isShelterCandidate = placeTypes.includes('school') || 
                                placeTypes.includes('community_center') || 
                                placeTypes.includes('local_government_office') ||
                                placeTypes.includes('gym') ||
-                               placeTypes.includes('church');
-    const isHospital = placeTypes.includes('hospital');
+                               placeTypes.includes('church') ||
+                               placeTypes.includes('place_of_worship');
+                               
+    const isHospital = placeTypes.includes('hospital') || 
+                       placeTypes.includes('doctor') || 
+                       placeTypes.includes('health') || 
+                       placeTypes.includes('physiotherapist');
 
     if (filterType === 'tsunami') {
-         // 1. 公園などは除外
          if (placeTypes.includes('park') || placeTypes.includes('campground') || placeTypes.includes('rv_park')) {
             return false;
         }
+        
+        // 病院はハザードマップ内でも表示
+        if (isHospital) {
+            return true;
+        }
 
-        // 2. ハザードマップ（危険区域）内にあるか判定して除外
-        // exclusionPolygons配列（GeoJSONから作成）を走査
-        // ※データ量によっては重くなる可能性があります
-        if (exclusionPolygons.length > 0) {
-            for (let i = 0; i < exclusionPolygons.length; i++) {
-                if (google.maps.geometry.poly.containsLocation(place.geometry.location, exclusionPolygons[i])) {
-                    // ポリゴン内に含まれる＝危険区域内なので表示しない
-                    return false;
-                }
-            }
+        // それ以外のAPI取得避難所は、ハザードマップ内なら非表示
+        if (isLocationInsideHazardZone(lat, lng)) {
+            return false;
         }
     }
 
@@ -286,7 +318,6 @@ function filterDisasterMarkers(selectedTypes, filterType) {
     const legendHazard = document.getElementById('legendHazard');
 
     if (filterType === 'tsunami') {
-        // ハザードマップ表示（赤色）
         mapDisaster.data.setStyle({
             visible: true,
             fillColor: '#FF0000',
@@ -296,10 +327,15 @@ function filterDisasterMarkers(selectedTypes, filterType) {
             clickable: false
         });
         
-        if (alertMsg) alertMsg.textContent = "津波避難モード: 浸水想定区域（赤色）以外の避難所を表示しています。";
+        if (alertMsg) alertMsg.textContent = "津波避難モード: 浸水想定区域（赤色）以外の避難所・病院を表示しています。";
         if (legendHazard) legendHazard.style.display = 'list-item';
 
-        // 再描画（shouldDisplayPlace内で除外判定が行われる）
+        // ★修正：固定リスト（指定避難所）は津波判定をスキップして全て表示
+        FIXED_SHELTER_DATA.forEach(data => {
+            createManualMarker(data);
+        });
+
+        // APIデータは判定を行う
         if (allDisasterPlaces.length === 0) {
             searchPlacesDisaster(mapDisaster.getCenter(), 5000);
         } else {
@@ -312,14 +348,21 @@ function filterDisasterMarkers(selectedTypes, filterType) {
         mapDisaster.data.setStyle({ visible: false });
         if (alertMsg) alertMsg.textContent = "火山避難モード: ハワイ島の主要な避難所を表示しています。";
         if (legendHazard) legendHazard.style.display = 'none';
+        
         mapDisaster.setCenter({ lat: 19.65, lng: -155.5 });
         mapDisaster.setZoom(9);
-        VOLCANO_SHELTER_DATA.forEach(data => createManualMarker(data));
+        
+        FIXED_SHELTER_DATA.forEach(data => {
+            if (data.island === "Hawaii") createManualMarker(data);
+        });
     } 
-    else {
+    else if (filterType === 'all' || filterType === 'hurricane') {
         mapDisaster.data.setStyle({ visible: false });
-        if (alertMsg) alertMsg.textContent = "現在、防災モードが有効です。避難情報と災害警報にご注意ください。";
+        if (alertMsg) alertMsg.textContent = "現在、防災モードが有効です。全ての避難所と病院を表示しています。";
         if (legendHazard) legendHazard.style.display = 'none';
+
+        FIXED_SHELTER_DATA.forEach(data => createManualMarker(data));
+
         if (allDisasterPlaces.length === 0) {
             searchPlacesDisaster(mapDisaster.getCenter(), 5000);
         } else {
@@ -328,49 +371,62 @@ function filterDisasterMarkers(selectedTypes, filterType) {
             });
         }
     }
+    else {
+        mapDisaster.data.setStyle({ visible: false });
+    }
 }
 
+// 固定マーカー（画像アイコン：病院=byoin.png, 避難所=hinan.png）
 async function createManualMarker(data) {
     const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
-    const pin = new PinElement({
-        background: '#28a745', 
-        borderColor: '#155724',
-        glyph: "避",
-        glyphColor: "white",
-        scale: 1.1
-    });
+    
+    const icon = document.createElement('img');
+    if (data.type === 'hospital') {
+        icon.src = 'img/byoin.png'; // ★ pngに修正
+    } else {
+        icon.src = 'img/hinan.png';
+    }
+    icon.style.width = '35px';
+    icon.style.height = '35px';
+    icon.style.objectFit = 'contain';
+
     const marker = new AdvancedMarkerElement({ 
         map: mapDisaster, 
         position: { lat: data.lat, lng: data.lng }, 
         title: data.name, 
-        content: pin.element
+        content: icon
     });
     disasterMarkers.push(marker);
     marker.addListener('click', () => {
+        const typeLabel = (data.type === 'hospital') ? '病院・医療機関' : '指定避難所';
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.name)}`;
-        const infoContent = `<div style="font-family: sans-serif; font-size: 14px; line-height: 1.5;"><h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600;">${data.name}</h3><p style="margin: 0 0 8px 0; color: #555;"><strong>種別:</strong> 指定避難所 (火山対応)</p><button onclick="document.getElementById('endDisaster').value = '${data.name}'" style="padding: 6px 10px; cursor: pointer; margin-right:5px;">目的地に設定</button><a href="${mapsUrl}" target="_blank" style="color: #1a73e8;">Google マップで見る</a></div>`;
+        const infoContent = `<div style="font-family: sans-serif; font-size: 14px; line-height: 1.5;"><h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600;">${data.name}</h3><p style="margin: 0 0 8px 0; color: #555;"><strong>種別:</strong> ${typeLabel} (${data.island})</p><button onclick="document.getElementById('endDisaster').value = '${data.name}'" style="padding: 6px 10px; cursor: pointer; margin-right:5px;">目的地に設定</button><a href="${mapsUrl}" target="_blank" style="color: #1a73e8;">Google マップで見る</a></div>`;
         disasterInfoWindow.setContent(infoContent);
         disasterInfoWindow.open(mapDisaster, marker);
     });
 }
 
+// APIマーカー（画像アイコン：病院=byoin.png, 避難所=hinan.png）
 async function createDisasterMarker(place) {
     if (!place.geometry || !place.geometry.location) return;
-    const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
+    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
     
-    let bgColor, borderColor, glyphContent, categoryName;
-    if (place.types.includes('hospital')) {
-        bgColor = '#007bff'; borderColor = '#004085'; glyphContent = "＋"; categoryName = '病院';
-    } else {
-        bgColor = '#28a745'; borderColor = '#155724'; glyphContent = "避"; categoryName = '避難所';
-    }
+    const types = place.types;
+    let isHospital = types.includes('hospital') || types.includes('doctor') || types.includes('health');
+    let categoryName = isHospital ? '病院・医療機関' : '避難所';
 
-    const pin = new PinElement({
-        background: bgColor, borderColor: borderColor, glyph: glyphContent, glyphColor: "white", scale: 1.1
-    });
+    const icon = document.createElement('img');
+    if (isHospital) {
+        icon.src = 'img/byoin.png'; // ★ pngに修正
+    } else {
+        icon.src = 'img/hinan.png';
+    }
+    icon.style.width = '35px';
+    icon.style.height = '35px';
+    icon.style.objectFit = 'contain';
 
     const marker = new AdvancedMarkerElement({ 
-        map: mapDisaster, position: place.geometry.location, title: place.name, content: pin.element
+        map: mapDisaster, position: place.geometry.location, title: place.name, content: icon
     });
     
     marker.placeAddress = place.formatted_address || "";
