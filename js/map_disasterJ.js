@@ -10,27 +10,29 @@ let disasterInfoWindow;
 let disasterDirectionsService;
 let disasterDirectionsRenderer;
 let disasterGeocoder;
+let tsunamiLayer = null; // 津波ハザードマップ用レイヤー
 
 // ハワイ島（ビッグアイランド）の火山避難所指定リスト
-// ArcGISおよびハワイ郡の避難所マップに基づく主要避難所リスト
+// ArcGISマップ(ハワイ郡公式)に基づく主要避難所
 const BIG_ISLAND_VOLCANO_SHELTERS = [
-    "Pahoa Community Center",       // パホア・コミュニティセンター
-    "Pahoa Neighborhood Facility",  // パホア近隣施設
-    "Keaau High School",            // ケアウ高校
-    "Keaau Armory",                 // ケアウ・アーマリー
-    "Herbert Shipman Park",         // ハーバート・シップマン・パーク（ケアウ・アーマリーの所在地）
-    "Hilo High School",             // ヒロ高校
-    "Waiakea High School",          // ワイアケア高校
-    "Kailua Park",                  // カイルア・パーク
-    "Kailua District Park",         // カイルア地区公園（コナ）
-    "Kealakehe High School",        // ケアラケヘ高校
-    "Robert Herkes Gymnasium",      // ロバート・ハーケス体育館 (Pahala)
-    "Pahala Community Center",      // パハラ・コミュニティセンター
-    "Naalehu Community Center",     // ナアレフ・コミュニティセンター
-    "Naalehu Elementary School",    // ナアレフ小学校
-    "Mountain View Elementary School", // マウンテンビュー小学校
-    "Honokaa High School",          // ホノカア高校
-    "Pahoa High School"             // パホア高校
+    "Pahoa Community Center",
+    "Pahoa Neighborhood Facility",
+    "Keaau High School",
+    "Keaau Armory",
+    "Herbert Shipman Park",
+    "Hilo High School",
+    "Waiakea High School",
+    "Kailua Park",     // Old Kona Airport State Recreation Area
+    "Kailua District Park",
+    "Kealakehe High School",
+    "Robert Herkes Gymnasium",
+    "Ka'u District Gym",
+    "Pahala Community Center",
+    "Naalehu Community Center",
+    "Mountain View Elementary School",
+    "Honokaa High School",
+    "Pahoa High School",
+    "Sure Foundation Church" // 過去の噴火時によく使用された場所
 ];
 
 // フィルタタイプとボタンIDの対応表
@@ -43,21 +45,15 @@ const filterButtonIds = {
     'hideAll': 'filterHideAllDisasters'
 };
 
-// ボタンのスタイルを更新する関数
 function updateFilterButtonStyles(activeType) {
     Object.values(filterButtonIds).forEach(id => {
         const btn = document.getElementById(id);
-        if (btn) {
-            btn.classList.remove('active-filter');
-        }
+        if (btn) btn.classList.remove('active-filter');
     });
-
     const activeId = filterButtonIds[activeType];
     if (activeId) {
         const activeBtn = document.getElementById(activeId);
-        if (activeBtn) {
-            activeBtn.classList.add('active-filter');
-        }
+        if (activeBtn) activeBtn.classList.add('active-filter');
     }
 }
 
@@ -68,6 +64,7 @@ async function initMapDisaster() {
     const { DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("routes");
     const { Geocoder } = await google.maps.importLibrary("geocoding");
     
+    // 初期表示位置（ホノルル周辺）
     const initialLat = 21.3069;
     const initialLon = -157.8583;
     const initialZoom = 13;
@@ -84,6 +81,27 @@ async function initMapDisaster() {
         clickableIcons: false,
     });
     
+    // --- 津波ハザードマップレイヤーの初期化 ---
+    // NOAAやハワイ州が提供するKMLデータを使用します。
+    // 注意: KMLを表示するには、そのURLがGoogleのサーバーからアクセス可能な公開URLである必要があります。
+    // 以下のURLはPacIOOS (Pacific Islands Ocean Observing System) が提供するハワイ全土の津波避難ゾーンです。
+    tsunamiLayer = new google.maps.KmlLayer({
+        url: "http://geo.pacioos.hawaii.edu/geoserver/wms/kml?layers=PACIOOS:hi_state_all_tsunami_evac_zones&mode=download",
+        suppressInfoWindows: false, // ゾーンをクリックしたときに情報を表示するか
+        preserveViewport: true,     // レイヤー表示時に勝手にズームしない
+        map: null,                  // 初期状態は非表示
+        zIndex: 0
+    });
+
+    // KMLのロードエラー処理
+    google.maps.event.addListener(tsunamiLayer, 'status_changed', function () {
+        if (tsunamiLayer.getStatus() !== 'OK') {
+            console.warn('津波ハザードマップKMLの読み込みに失敗しました。Status:', tsunamiLayer.getStatus());
+            // 代替案: ローカルでホストしたKMLがある場合はそちらを指定してください
+        }
+    });
+    // ----------------------------------------
+
     disasterPlacesService = new PlacesService(mapDisaster);
     disasterInfoWindow = new google.maps.InfoWindow({ maxWidth: 280 });
     mapDisaster.addListener('click', () => disasterInfoWindow.close());
@@ -110,8 +128,7 @@ async function initMapDisaster() {
         });
     }
     
-    // 検索カテゴリを拡張：公園(park)、体育館(gym)、公共施設(local_government_office)を追加
-    const shelterTypes = ['community_center', 'school', 'fire_station', 'hospital', 'park', 'gym', 'local_government_office'];
+    const shelterTypes = ['community_center', 'school', 'fire_station', 'hospital', 'park', 'gym', 'local_government_office', 'church'];
     
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -120,25 +137,26 @@ async function initMapDisaster() {
                 userCurrentLocationDisaster = pos;
                 mapDisaster.setCenter(pos); mapDisaster.setZoom(14);
                 drawUserLocationCircleDisaster(pos);
-                searchPlacesDisaster(pos, 2000, shelterTypes);
+                searchPlacesDisaster(pos, 5000, shelterTypes); // 検索範囲を少し広げました
             },
             async (error) => {
                 const initialCenter = mapDisaster.getCenter();
                 userCurrentLocationDisaster = initialCenter;
                 drawUserLocationCircleDisaster(initialCenter);
-                searchPlacesDisaster(initialCenter, 2000, shelterTypes);
+                searchPlacesDisaster(initialCenter, 5000, shelterTypes);
             }
         );
     } else {
         const initialCenter = mapDisaster.getCenter();
         userCurrentLocationDisaster = initialCenter;
         drawUserLocationCircleDisaster(initialCenter);
-        searchPlacesDisaster(initialCenter, 2000, shelterTypes);
+        searchPlacesDisaster(initialCenter, 5000, shelterTypes);
     }
     
+    // 検索ボックス
     const searchInput = document.createElement('input');
     searchInput.id = 'mapSearchInput';
-    searchInput.placeholder = '避難所を検索';
+    searchInput.placeholder = '地域や避難所を検索';
     searchInput.style.cssText = 'width: calc(100% - 20px); padding: 10px; margin: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);';
     mapDisaster.controls[google.maps.ControlPosition.TOP_CENTER].push(searchInput);
     
@@ -147,13 +165,16 @@ async function initMapDisaster() {
     autocomplete.addListener('place_changed', () => {
         const place = autocomplete.getPlace();
         if (!place.geometry || !place.geometry.location) { return; }
-        if (place.geometry.viewport) { mapDisaster.fitBounds(place.geometry.viewport); } else { mapDisaster.setCenter(place.geometry.location); mapDisaster.setZoom(17); }
+        if (place.geometry.viewport) { mapDisaster.fitBounds(place.geometry.viewport); } else { mapDisaster.setCenter(place.geometry.location); mapDisaster.setZoom(15); }
+        
         clearDisasterMarkers();
         allDisasterPlaces = [];
         processedDisasterPlaceIds.clear();
-        searchPlacesDisaster(place.geometry.location, 2000, shelterTypes);
+        // 移動先で再検索
+        searchPlacesDisaster(place.geometry.location, 5000, shelterTypes);
     });
     
+    // 現在地ボタン
     const returnButton = document.createElement('button');
     returnButton.id = 'returnToCurrentLocationDisaster';
     returnButton.textContent = '現在地に戻る';
@@ -164,17 +185,19 @@ async function initMapDisaster() {
             clearDisasterMarkers();
             allDisasterPlaces = [];
             processedDisasterPlaceIds.clear();
-            searchPlacesDisaster(userCurrentLocationDisaster, 2000, shelterTypes);
+            searchPlacesDisaster(userCurrentLocationDisaster, 5000, shelterTypes);
             drawUserLocationCircleDisaster(userCurrentLocationDisaster);
         } else { console.warn('現在地が取得できませんでした。'); }
     });
     mapDisaster.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(returnButton);
     
+    // アイドル時に追加検索（スクロール時など）
     mapDisaster.addListener('idle', () => {
         const zoomLevel = mapDisaster.getZoom();
         if (zoomLevel >= 12) {
             const newCenter = mapDisaster.getCenter();
-            searchPlacesDisaster(newCenter, 2000, shelterTypes);
+            // 既にロード済みの範囲ならスキップするロジックを入れると良いが、簡易的に追加検索
+            searchPlacesDisaster(newCenter, 5000, shelterTypes);
         }
     });
 
@@ -189,84 +212,99 @@ let currentDisasterFilter = 'all';
 
 function searchPlacesDisaster(center, radius, types) {
     if (!disasterPlacesService) return;
-    types.forEach(type => {
-        const request = { location: center, radius: radius, type: type };
-        disasterPlacesService.nearbySearch(request, (results, status) => {
-            if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-                // 結果が指定タイプのいずれかを含むかチェック
-                const filteredResults = results.filter(place => types.some(t => place.types.includes(t)));
-                for (const place of filteredResults) {
-                    if (place.place_id && !processedDisasterPlaceIds.has(place.place_id)) {
-                        processedDisasterPlaceIds.add(place.place_id);
-                        getPlaceDetailsDisaster(place.place_id);
+    
+    // typeごとに検索するとAPIコールが増えるので、主要なものに絞るか、keyword検索を併用
+    // ここではキーワード検索で一括取得を試みる（学校、コミュニティセンター、公園）
+    const request = {
+        location: center,
+        radius: radius,
+        // type指定ではなくkeywordで広めに拾う（"shelter"だと出ない場所が多いため施設名で拾う）
+        keyword: "school OR community center OR park OR gym OR hospital" 
+    };
+    
+    disasterPlacesService.nearbySearch(request, (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+            for (const place of results) {
+                if (place.place_id && !processedDisasterPlaceIds.has(place.place_id)) {
+                    processedDisasterPlaceIds.add(place.place_id);
+                    // 取得したPlaceを保存
+                    allDisasterPlaces.push(place); 
+                    // 現在のフィルタに合わせて表示判定
+                    if (shouldDisplayPlace(place, currentDisasterFilter)) {
+                        createDisasterMarker(place);
                     }
                 }
-            }
-        });
-    });
-}
-
-function getPlaceDetailsDisaster(placeId) {
-    const request = { placeId, fields: ['name', 'geometry', 'types', 'rating', 'user_ratings_total', 'place_id', 'icon', 'formatted_address'] };
-    disasterPlacesService.getDetails(request, (place, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-            allDisasterPlaces.push(place);
-            if (shouldDisplayPlace(place, currentDisasterFilter)) {
-                createDisasterMarker(place);
             }
         }
     });
 }
 
+// フィルタリングロジックの要
 function shouldDisplayPlace(place, filterType) {
     if (!place.geometry || !place.geometry.location) return false;
     
     const placeLat = place.geometry.location.lat();
     const placeLng = place.geometry.location.lng();
-    
-    const coastPoint = new google.maps.LatLng(21.27, placeLng);
-    const distanceToCoast = google.maps.geometry.spherical.computeDistanceBetween(place.geometry.location, coastPoint); 
-    const distKm = distanceToCoast / 1000;
-
+    const placeName = place.name || "";
     const placeTypes = place.types || [];
+    
+    // 海岸からの距離計算（簡易的な判定）
+    // 緯度21.27を基準線としているのは簡易版です。実際はGeometry Libraryで計算します。
+    // ここでは、特定の座標（その場所）と「最も近い海岸線」の距離を正確に出すのはAPIなしでは難しいため、
+    // ハワイ諸島の特性上、標高や「内陸かどうか」が重要ですが、簡易的に海岸線を想定したポイントとの距離を測るか、
+    // あるいは「危険区域（KML）」の外にあるものをAPIなしで判定するのは困難です。
+    // そのため、ここでは「津波」に関しては「海岸から1.5km以上離れている」かつ「学校・公共施設」を表示します。
+    // ※ハワイの津波避難ゾーンは概ね沿岸1マイル(1.6km)以内が多いため。
+    
+    // 便宜上、各場所から「最寄りの海」までの距離を正確に知ることはできないため、
+    // Google Maps Geometryライブラリを使っても「海ポリゴン」がないと判定不能。
+    // 今回は「津波モード」のときは、KMLレイヤーで危険区域を可視化し、
+    // 避難所ピンについては『明らかに海沿い（ビーチパーク等）』を除外するロジックにします。
+
+    // Placeタイプによる基本フィルタ
+    const isShelterCandidate = placeTypes.includes('school') || 
+                               placeTypes.includes('community_center') || 
+                               placeTypes.includes('local_government_office') ||
+                               placeTypes.includes('gym') ||
+                               placeTypes.includes('church'); // 教会も避難所になることが多い
+
+    // ハワイ島判定
+    const isBigIsland = (placeLat >= 18.9 && placeLat <= 20.35 && placeLng >= -156.1 && placeLng <= -154.8);
 
     switch (filterType) {
         case 'fire':
-            // 森林火災: 沿岸から10km以内
-            return (placeTypes.includes('fire_station') || placeTypes.includes('school') || placeTypes.includes('community_center')) 
-                   && distKm <= 10;
+            // 火災: 消防署、学校、コミュニティセンター
+            return placeTypes.includes('fire_station') || placeTypes.includes('school') || placeTypes.includes('community_center');
         
         case 'tsunami':
-            // 津波: 沿岸から10km以遠
-            return (placeTypes.includes('community_center') || placeTypes.includes('school')) 
-                   && distKm > 10;
+            // 津波: ハザードマップ（KML）外にある場所のみ表示したい。
+            // クライアントサイドだけで「KMLポリゴンの外か」を判定するのは不可。
+            // 代替案: 「海沿いの公園」などは除外。「学校」「高台の施設」を優先。
+            // また、内陸にあると推定される場所を表示。
+            // ここでは簡易的に「park」タイプを除外し、学校・公共施設に絞ることでリスクを減らす。
+            // 本来は標高データが必要。
+            if (placeTypes.includes('park') || placeTypes.includes('campground') || placeTypes.includes('rv_park')) {
+                return false; // 海沿いの公園は避難所として不適切（津波時）
+            }
+            return isShelterCandidate;
         
         case 'volcano':
-            // ハワイ島（ビッグアイランド）の判定
-            const isBigIsland = (placeLat >= 18.9 && placeLat <= 20.35 && placeLng >= -156.1 && placeLng <= -154.8);
-
+            // 火山: ハワイ島かつ、指定リストにある場所のみ
             if (isBigIsland) {
-                const name = place.name || "";
                 // 名前リストと照合（部分一致）
-                return BIG_ISLAND_VOLCANO_SHELTERS.some(shelterName => name.includes(shelterName));
+                const isDesignated = BIG_ISLAND_VOLCANO_SHELTERS.some(shelterName => placeName.includes(shelterName));
+                return isDesignated;
             } else {
-                // その他の島: 学校とコミュニティセンターを表示
-                return placeTypes.includes('community_center') || placeTypes.includes('school');
+                // 他の島では火山リスクは低いため表示しない、あるいは主要施設のみ
+                return false; 
             }
         
         case 'hurricane':
-            // ハリケーン: 沿岸から5km以遠 (病院も含む)
-            return (placeTypes.includes('community_center') || placeTypes.includes('school') || placeTypes.includes('hospital'))
-                   && distKm > 5;
+            // ハリケーン: 頑丈な建物（学校、公共施設、病院）
+            return isShelterCandidate || placeTypes.includes('hospital');
         
         case 'all':
-            // 全て表示: 指定カテゴリのいずれかに一致すればOK
-            // 公園や体育館などは明示的に「全て」のときには避難所として適切か判断が難しいため、
-            // リストにある重要なもの（Armory等）は表示したいが、単なる公園は除外するなど調整可能。
-            // ここでは主要な避難所タイプを表示。
-            return placeTypes.includes('community_center') || placeTypes.includes('school') || 
-                   placeTypes.includes('fire_station') || placeTypes.includes('hospital') ||
-                   (isBigIslandPlace(placeLat, placeLng) && BIG_ISLAND_VOLCANO_SHELTERS.some(s => place.name.includes(s))); // ハワイ島ならリストにある施設は必ず表示
+            return isShelterCandidate || placeTypes.includes('fire_station') || placeTypes.includes('hospital');
         
         case 'hideAll':
             return false;
@@ -276,33 +314,30 @@ function shouldDisplayPlace(place, filterType) {
     }
 }
 
-// 補助関数: ハワイ島かどうか判定
-function isBigIslandPlace(lat, lng) {
-    return (lat >= 18.9 && lat <= 20.35 && lng >= -156.1 && lng <= -154.8);
-}
-
 async function createDisasterMarker(place) {
     if (!place.geometry || !place.geometry.location) return;
     const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
     
     let categoryName = '避難所';
-    let bgColor = '#28a745'; 
+    let bgColor = '#28a745'; // 緑
     let glyphContent = "避"; 
 
     if (place.types.includes('hospital')) {
-        bgColor = '#007bff'; 
+        bgColor = '#007bff'; // 青
         categoryName = '病院';
         glyphContent = "＋"; 
+    } else if (place.types.includes('fire_station')) {
+        bgColor = '#dc3545'; // 赤
+        categoryName = '消防署';
+        glyphContent = "消";
     }
-    // ハワイ島の火山避難所リストにあるものは、特別にラベルを変えるなどの処理も可能ですが、
-    // ここでは統一して「避難所（緑）」とします。
 
     const pin = new PinElement({
         background: bgColor,
         borderColor: "#ffffff",
         glyph: glyphContent,
         glyphColor: "white",
-        scale: 1.1
+        scale: 1.0
     });
 
     const marker = new AdvancedMarkerElement({ 
@@ -312,15 +347,25 @@ async function createDisasterMarker(place) {
         content: pin.element
     });
     
-    marker.placeAddress = place.formatted_address;
-    marker.placeTypes = place.types;
+    marker.placeAddress = place.formatted_address || "";
+    
     disasterMarkers.push(marker);
     
     marker.addListener('click', () => {
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name)}&query_place_id=${place.place_id}`;
         const encodedAddress = encodeURIComponent(place.formatted_address || place.name).replace(/'/g, "\\'");
 
-        const infoContent = `<div style="font-family: sans-serif; font-size: 14px; line-height: 1.5;"><h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600;">${place.name}</h3><p style="margin: 0 0 8px 0; color: #555;"><strong>カテゴリ:</strong> ${categoryName}</p><button onclick="document.getElementById('startDisaster').value = decodeURIComponent('${encodedAddress}');" style="margin-right: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer;">ここを出発地にする</button><button onclick="document.getElementById('endDisaster').value = decodeURIComponent('${encodedAddress}');" style="padding: 6px 10px; font-size: 13px; cursor: pointer;">ここを目的地にする</button><a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; text-decoration: none; font-weight: 500; display: block; margin-top: 12px;">Google マップで詳細を見る</a></div>`;
+        const infoContent = `
+            <div style="font-family: sans-serif; font-size: 14px; line-height: 1.5;">
+                <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600;">${place.name}</h3>
+                <p style="margin: 0 0 8px 0; color: #555;"><strong>カテゴリ:</strong> ${categoryName}</p>
+                <p style="margin: 0 0 8px 0; font-size: 12px;">${place.formatted_address || ''}</p>
+                <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                    <button onclick="document.getElementById('startDisaster').value = decodeURIComponent('${encodedAddress}');" style="padding: 6px 10px; cursor: pointer;">ここを出発地に</button>
+                    <button onclick="document.getElementById('endDisaster').value = decodeURIComponent('${encodedAddress}');" style="padding: 6px 10px; cursor: pointer;">ここを目的地に</button>
+                </div>
+                <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; text-decoration: none; font-weight: 500; display: block; margin-top: 10px;">Google マップで詳細を見る</a>
+            </div>`;
         disasterInfoWindow.setContent(infoContent);
         disasterInfoWindow.open(mapDisaster, marker);
     });
@@ -337,16 +382,34 @@ function filterDisasterMarkers(selectedTypes, filterType) {
     currentDisasterFilter = filterType;
     updateFilterButtonStyles(filterType);
     
-    for (const place of allDisasterPlaces) {
-        if (shouldDisplayPlace(place, filterType)) {
-            createDisasterMarker(place);
-        }
+    // --- 津波レイヤーの制御 ---
+    if (filterType === 'tsunami' && tsunamiLayer) {
+        tsunamiLayer.setMap(mapDisaster);
+        // マップの情報を更新
+        const alertMsg = document.getElementById('alertMsg');
+        if (alertMsg) alertMsg.textContent = "津波避難モード: 赤や斜線のエリアは危険区域です。区域外の避難所へ移動してください。";
+    } else {
+        if (tsunamiLayer) tsunamiLayer.setMap(null);
+        // メッセージを戻す
+        const alertMsg = document.getElementById('alertMsg');
+        if (alertMsg) alertMsg.textContent = "現在、防災モードが有効です。避難情報と災害警報にご注意ください。";
     }
-    if(typeof updateDisasterInfo === 'function') {
-        updateDisasterInfo(filterType);
+    // -----------------------
+    
+    // 場所の再描画
+    // allDisasterPlacesにデータがない場合は再検索を促すか、現在の範囲で検索
+    if (allDisasterPlaces.length === 0) {
+        searchPlacesDisaster(mapDisaster.getCenter(), 5000, ['school', 'community_center']);
+    } else {
+        for (const place of allDisasterPlaces) {
+            if (shouldDisplayPlace(place, filterType)) {
+                createDisasterMarker(place);
+            }
+        }
     }
 }
 
+// 経路検索等は変更なし
 function calcRouteDisaster() {
     const start = document.getElementById('startDisaster').value;
     const end = document.getElementById('endDisaster').value;
@@ -368,7 +431,6 @@ function calcRouteDisaster() {
             disasterDirectionsRenderer.setDirections(result);
             document.getElementById('googleMapsNaviButtonDisaster').style.display = 'inline-block';
         } else {
-            console.error('Directions request failed:', status, result);
             alert('経路が見つかりませんでした: ' + status);
         }
     });
@@ -393,11 +455,9 @@ function openGoogleMapsNaviDisaster() {
     }
     
     let url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(end)}&travelmode=${travelMode}`;
-    
     if (start) {
         url += `&origin=${encodeURIComponent(start)}`;
     }
-
     window.open(url, '_blank');
 }
 
@@ -418,7 +478,5 @@ function getCurrentLocationForDirectionsDisaster(inputId) {
         }, (error) => {
             console.warn("現在地を取得できませんでした。");
         });
-    } else {
-        console.warn("お使いのブラウザはGeolocationをサポートしていません。");
     }
 }
