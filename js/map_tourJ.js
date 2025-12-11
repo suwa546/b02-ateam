@@ -13,30 +13,21 @@ let tourGeocoder;
 
 // HIS関連施設データ
 const hisSpecialPlaces = [
-    {
-        name: "HIS LeaLeaラウンジ (ロイヤルハワイアンセンター)",
-        location: { lat: 21.279346, lng: -157.829442 },
-        type: "HIS_STORE",
-        desc: "HISの現地サポートデスク。オプショナルツアー予約など。"
-    },
-    {
-        name: "HIS Hawaii アラモアナ支店",
-        location: { lat: 21.291079, lng: -157.842790 },
-        type: "HIS_STORE",
-        desc: "アラモアナセンター内のHIS店舗。"
-    },
-    {
-        name: "ウルフギャング・ステーキハウス (提携店)",
-        location: { lat: 21.2798, lng: -157.8292 },
-        type: "HIS_PARTNER",
-        desc: "【HIS提携】極上の熟成肉ステーキを楽しめる名店。"
-    },
-    {
-        name: "ヒルトン・ハワイアン・ビレッジ (提携ホテル)",
-        location: { lat: 21.2846, lng: -157.8378 },
-        type: "HIS_PARTNER",
-        desc: "【HIS提携】ワイキキ最大級のリゾートホテル。"
-    }
+    // --- オアフ島 ---
+    { name: "HIS ワイキキ支店 (Waikiki Branch)", location: { lat: 21.2804, lng: -157.8276 }, type: "HIS_STORE", desc: "ワイキキ・ショッピング・プラザ 4階。" },
+    { name: "HIS アラモアナ支店 (Ala Moana Branch)", location: { lat: 21.2908, lng: -157.8423 }, type: "HIS_STORE", desc: "アラモアナセンター エヴァウィング 1階。" },
+    { name: "LeaLeaラウンジ (Royal Hawaiian)", location: { lat: 21.2793, lng: -157.8294 }, type: "HIS_STORE", desc: "ロイヤルハワイアンセンター B館3階。" },
+    { name: "LeaLeaラウンジ (Hilton Hawaiian Village)", location: { lat: 21.2846, lng: -157.8378 }, type: "HIS_STORE", desc: "ヒルトン・ハワイアン・ビレッジ内 ダイヤモンドヘッドタワー。" },
+    { name: "LeaLeaラウンジ (Hyatt Regency)", location: { lat: 21.2761, lng: -157.8248 }, type: "HIS_STORE", desc: "ハイアット・リージェンシー・ワイキキ内 エヴァタワー2階。" },
+    { name: "HIS シェラトン・ワイキキ営業所", location: { lat: 21.2785, lng: -157.8274 }, type: "HIS_STORE", desc: "シェラトン・ワイキキ・ホテル内。" },
+    { name: "HIS ワイキキビーチ・マリオット営業所", location: { lat: 21.2755, lng: -157.8219 }, type: "HIS_STORE", desc: "ワイキキビーチ・マリオット・リゾート＆スパ内。" },
+    { name: "LeaLeaラウンジ (Alohilani)", location: { lat: 21.2743, lng: -157.8236 }, type: "HIS_STORE", desc: "アロヒラニ・リゾート内。" },
+    { name: "LeaLeaエアポートラウンジ (HNL)", location: { lat: 21.3187, lng: -157.9225 }, type: "HIS_STORE", desc: "ダニエル・K・イノウエ国際空港内。" },
+    // --- ハワイ島 ---
+    { name: "HIS コナ支店 (Kona Branch)", location: { lat: 19.6393, lng: -155.9967 }, type: "HIS_STORE", desc: "キングカメハメハ・コナビーチホテル 1階。" },
+    { name: "LeaLeaラウンジ (Hilton Waikoloa)", location: { lat: 19.9240, lng: -155.8860 }, type: "HIS_STORE", desc: "ヒルトン・ワイコロア・ビレッジ内。" },
+    // --- マウイ島 ---
+    { name: "HIS マウイ支店 (Maui Branch)", location: { lat: 20.9168, lng: -156.6908 }, type: "HIS_STORE", desc: "シェラトン・マウイ・リゾート＆スパ内 ツアーデスク。" }
 ];
 
 async function initMapTour() {
@@ -44,6 +35,7 @@ async function initMapTour() {
     const { PlacesService, Autocomplete } = await google.maps.importLibrary("places");
     const { DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("routes");
     const { Geocoder } = await google.maps.importLibrary("geocoding");
+    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
 
     const initialLat = 21.3069;
     const initialLon = -157.8583;
@@ -162,23 +154,23 @@ async function initMapTour() {
     new Autocomplete(endInputTour, { types: ['geocode', 'establishment'] }).bindTo('bounds', mapTour);
 }
 
-// HIS関連マーカー
+// HIS関連マーカー (画像アイコンに変更)
 async function addHisSpecialMarkers() {
-    const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
+    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+    
     hisSpecialPlaces.forEach(hisPlace => {
-        const pin = new PinElement({
-            background: "#0055aa",
-            borderColor: "#ffcc00",
-            glyph: "HIS",
-            glyphColor: "white",
-            scale: 1.0 // 縮小
-        });
+        // 画像アイコンの作成
+        const icon = document.createElement('img');
+        icon.src = 'img/his.png'; // 画像ファイルのパス
+        icon.style.width = '40px'; // サイズ調整（少し大きめ）
+        icon.style.height = '40px';
+        icon.style.objectFit = 'contain';
 
         const marker = new AdvancedMarkerElement({
             map: mapTour,
             position: hisPlace.location,
             title: hisPlace.name,
-            content: pin.element,
+            content: icon, // imgタグをコンテンツに設定
             zIndex: 9999,
             collisionBehavior: 'REQUIRED_AND_HIDES_OPTIONAL'
         });
@@ -227,7 +219,6 @@ async function createTourMarker(place) {
     if (!place.geometry || !place.geometry.location) return;
     const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
     
-    // アイコンサイズを縮小
     const icon = document.createElement('img');
     icon.src = place.icon;
     icon.style.width = '24px'; 
@@ -245,7 +236,6 @@ async function createTourMarker(place) {
         position: place.geometry.location, 
         title: place.name, 
         content: icon,
-        // ★重なったピンを自動で隠す設定
         collisionBehavior: 'OPTIONAL_AND_HIDES_LOWER_PRIORITY' 
     });
     
@@ -282,13 +272,12 @@ function clearTourMarkers() {
     if (tourInfoWindow) tourInfoWindow.close();
 }
 
+// ...フィルタリングやルート検索関数（変更なし）...
 function filterTourMarkers(selectedTypes) {
     clearTourMarkers();
     for (const place of allTourPlaces) {
         const matchesType = selectedTypes.length === 0 || place.types.some(type => selectedTypes.includes(type));
-        if (matchesType) {
-            createTourMarker(place);
-        }
+        if (matchesType) createTourMarker(place);
     }
 }
 
@@ -298,14 +287,8 @@ function filterByRatingTour(minRating, maxRating) {
         const isFoodOrCafe = place.types.includes('restaurant') || place.types.includes('cafe');
         const hasRating = typeof place.rating === 'number' && !isNaN(place.rating);
         if (isFoodOrCafe) {
-            if (minRating === -1 && maxRating === -1) {
-                createTourMarker(place);
-            }
-            else if (hasRating) {
-                if (place.rating >= minRating && place.rating < maxRating) {
-                    createTourMarker(place);
-                }
-            }
+            if (minRating === -1 && maxRating === -1) createTourMarker(place);
+            else if (hasRating && place.rating >= minRating && place.rating < maxRating) createTourMarker(place);
         }
     }
 }
@@ -338,7 +321,7 @@ function openGoogleMapsNaviTour() {
     const travelMode = document.getElementById('travelModeTour').value.toLowerCase();
     if (!end) { alert("目的地が設定されていません。"); return; }
     let url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(end)}&travelmode=${travelMode}`;
-    if (start) { url += `&origin=${encodeURIComponent(start)}`; }
+    if (start) url += `&origin=${encodeURIComponent(start)}`;
     window.open(url, '_blank');
 }
 
