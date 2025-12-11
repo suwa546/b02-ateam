@@ -100,6 +100,8 @@ async function initMapDisaster() {
         mapDisaster.data.addGeoJson(tsunamiData);
         mapDisaster.data.setStyle({ visible: false });
         processGeoJsonToPolygons(tsunamiData);
+    } else {
+        console.warn("ハザードマップデータ(tsunamiData)が読み込まれていません。");
     }
 
     disasterPlacesService = new PlacesService(mapDisaster);
@@ -173,25 +175,22 @@ async function initMapDisaster() {
     returnButton.addEventListener('click', async () => {
         if (userCurrentLocationDisaster) {
             mapDisaster.setCenter(userCurrentLocationDisaster); mapDisaster.setZoom(14);
-            // 火山モード以外なら再検索
-            if (currentDisasterFilter !== 'volcano') {
-                clearDisasterMarkers();
-                allDisasterPlaces = [];
-                processedDisasterPlaceIds.clear();
-                searchPlacesDisaster(userCurrentLocationDisaster, 5000);
-            }
+            // モードに関わらず現在地周辺を再検索
+            clearDisasterMarkers();
+            allDisasterPlaces = [];
+            processedDisasterPlaceIds.clear();
+            searchPlacesDisaster(userCurrentLocationDisaster, 5000);
             drawUserLocationCircleDisaster(userCurrentLocationDisaster);
         }
     });
     mapDisaster.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(returnButton);
     
     mapDisaster.addListener('idle', () => {
-        if (currentDisasterFilter !== 'volcano') {
-            const zoomLevel = mapDisaster.getZoom();
-            if (zoomLevel >= 11) {
-                const newCenter = mapDisaster.getCenter();
-                searchPlacesDisaster(newCenter, 5000);
-            }
+        // 全モードでアイドル時検索を有効化
+        const zoomLevel = mapDisaster.getZoom();
+        if (zoomLevel >= 11) {
+            const newCenter = mapDisaster.getCenter();
+            searchPlacesDisaster(newCenter, 5000);
         }
     });
 
@@ -259,12 +258,18 @@ function searchPlacesDisaster(center, radius) {
         }
     });
 
-    if (currentDisasterFilter === 'all' || currentDisasterFilter === 'tsunami') {
-        FIXED_SHELTER_DATA.forEach(data => {
-            // 津波モード時：固定リストの避難所は信頼できる場所とみなして表示（除外判定しない）
+    // 固定リストは常にチェックして表示
+    FIXED_SHELTER_DATA.forEach(data => {
+        if (currentDisasterFilter === 'tsunami') {
+            // 津波モード：病院は常に表示、その他はハザードマップ外なら表示
+            if (data.type === 'hospital' || !isLocationInsideHazardZone(data.lat, data.lng)) {
+                 createManualMarker(data);
+            }
+        } else if (currentDisasterFilter !== 'hideAll') {
+            // 火山、ハリケーン、全表示モード：すべて表示
             createManualMarker(data);
-        });
-    }
+        }
+    });
 }
 
 function shouldDisplayPlace(place, filterType) {
@@ -285,21 +290,23 @@ function shouldDisplayPlace(place, filterType) {
                        placeTypes.includes('health') || 
                        placeTypes.includes('physiotherapist');
 
+    // 津波モード
     if (filterType === 'tsunami') {
          if (placeTypes.includes('park') || placeTypes.includes('campground') || placeTypes.includes('rv_park')) {
             return false;
         }
-        
-        // 病院は表示
         if (isHospital) return true;
-
-        // それ以外の周辺検索結果（APIデータ）はハザードマップ判定
         if (isLocationInsideHazardZone(lat, lng)) {
             return false;
         }
     }
 
-    if (filterType === 'volcano') return false; 
+    // 火山モード
+    if (filterType === 'volcano') {
+        // ★修正: 病院も避難所も島を問わず全て表示する
+        return isHospital || isShelterCandidate;
+    }
+
     if (filterType === 'hideAll') return false;
 
     return isShelterCandidate || isHospital;
@@ -315,6 +322,7 @@ function filterDisasterMarkers(selectedTypes, filterType) {
     const alertMsg = document.getElementById('alertMsg');
     const hazardSection = document.getElementById('hazardSection');
 
+    // ■ 津波モード
     if (filterType === 'tsunami') {
         mapDisaster.data.setStyle({
             visible: true,
@@ -328,12 +336,14 @@ function filterDisasterMarkers(selectedTypes, filterType) {
         if (alertMsg) alertMsg.textContent = "津波避難モード: 浸水想定区域（赤色）以外の避難所・病院を表示しています。";
         if (hazardSection) hazardSection.style.display = 'block';
 
-        // ★固定リストは常に表示（津波判定しない）
         FIXED_SHELTER_DATA.forEach(data => {
-            createManualMarker(data);
+            if (data.type === 'hospital') {
+                createManualMarker(data);
+            } else if (!isLocationInsideHazardZone(data.lat, data.lng)) {
+                createManualMarker(data);
+            }
         });
 
-        // APIデータは判定を行う
         if (allDisasterPlaces.length === 0) {
             searchPlacesDisaster(mapDisaster.getCenter(), 5000);
         } else {
@@ -342,17 +352,27 @@ function filterDisasterMarkers(selectedTypes, filterType) {
             });
         }
     } 
+    // ■ 火山モード
     else if (filterType === 'volcano') {
         mapDisaster.data.setStyle({ visible: false });
-        if (alertMsg) alertMsg.textContent = "火山避難モード: ハワイ島の主要な避難所を表示しています。";
+        if (alertMsg) alertMsg.textContent = "火山避難モード: ハワイ全島の避難所と病院を表示しています。";
         if (hazardSection) hazardSection.style.display = 'none';
         
-        // ★修正: 地図を勝手に移動しない（setCenter/setZoom 削除）
-        
+        // ★修正: ハワイ島限定解除。全島の固定リストを表示。
         FIXED_SHELTER_DATA.forEach(data => {
-            if (data.island === "Hawaii") createManualMarker(data);
+            createManualMarker(data);
         });
+
+        // APIデータも表示
+        if (allDisasterPlaces.length === 0) {
+            searchPlacesDisaster(mapDisaster.getCenter(), 5000);
+        } else {
+            allDisasterPlaces.forEach(place => {
+                if (shouldDisplayPlace(place, 'volcano')) createDisasterMarker(place);
+            });
+        }
     } 
+    // ■ 全て表示 / ハリケーン
     else if (filterType === 'all' || filterType === 'hurricane') {
         mapDisaster.data.setStyle({ visible: false });
         if (alertMsg) alertMsg.textContent = "現在、防災モードが有効です。全ての避難所と病院を表示しています。";
