@@ -89,26 +89,24 @@ main {
     margin-bottom: 15px;
 }
 
-/* Google Mapsの現在地に戻るボタンのスタイル (カスタム) */
 .map-control-button {
     background-color: #ffffff; /* 白い背景 */
     color: #333;
     padding: 10px 15px;
     border: 1px solid #ccc;
-    border-radius: 8px; /* 角を丸く */
+    border-radius: 8px;
     cursor: pointer;
     font-size: 0.9em;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     transition: background-color 0.3s ease;
-    margin-bottom: 10px; /* 他のコントロールとの間に余白 */
+    margin-bottom: 10px;
 }
 
 .map-control-button:hover {
     background-color: #f0f0f0;
 }
 
-/* 経路案内UIのスタイル */
-.directions-section, .info-section, .legend-section, .filter-section { /* filter-sectionも追加 */
+.directions-section, .info-section, .legend-section, .filter-section {
     background-color: #ffffff;
     padding: 15px;
     margin-bottom: 15px;
@@ -116,7 +114,7 @@ main {
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
 
-.directions-section h2, .info-section h2, .legend-section h2, .filter-section h2 { /* filter-section h2も追加 */
+.directions-section h2, .info-section h2, .legend-section h2, .filter-section h2 {
     color: #dc3545; /* 防災モードのテーマカラー */
     font-size: 1.1em;
     margin-top: 0;
@@ -129,7 +127,7 @@ main {
     margin-bottom: 12px;
     display: flex;
     align-items: center;
-    flex-wrap: wrap; /* スマートフォンで折り返す */
+    flex-wrap: wrap;
     gap: 8px;
 }
 
@@ -213,7 +211,7 @@ main {
     line-height: 1.6;
 }
 
-.info-section ul {
+.info-section ul, .legend-section ul {
     list-style: none;
     padding: 0;
     margin: 15px 0 0 0;
@@ -225,12 +223,6 @@ main {
     color: #555;
 }
 
-.legend-section ul {
-    list-style: none;
-    padding: 0;
-    margin: 15px 0 0 0;
-}
-
 .legend-section li {
     display: flex;
     align-items: center;
@@ -239,21 +231,15 @@ main {
     color: #555;
 }
 
-.legend-section li img {
-    margin-right: 10px;
-    flex-shrink: 0;
-}
-
-/* 災害タイプフィルタボタンのスタイル */
 .filter-buttons-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* スマートフォン向けに2列またはそれ以上に自動調整 */
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 10px;
     margin-top: 15px;
 }
 
 .filter-buttons-grid button {
-    background-color: #dc3545; /* 防災モードのテーマカラー */
+    background-color: #dc3545;
     color: white;
     padding: 10px 12px;
     border: none;
@@ -270,22 +256,19 @@ main {
 }
 
 .filter-buttons-grid button#filterAllDisasters {
-    background-color: #ffc107; /* 「全て表示」は警告色 */
+    background-color: #ffc107;
     color: #333;
 }
-
 .filter-buttons-grid button#filterAllDisasters:hover {
     background-color: #e0a800;
 }
 
 .filter-buttons-grid button#filterHideAllDisasters {
-    background-color: #6c757d; /* 「非表示」はグレーに */
+    background-color: #6c757d;
 }
-
 .filter-buttons-grid button#filterHideAllDisasters:hover {
     background-color: #5a6268;
 }
-
 
 footer { 
     background: #dc3545; 
@@ -296,80 +279,53 @@ footer {
     margin-top: 20px;
 }
 
-/* スマートフォン縦向き (320px - 767px) */
 @media (max-width: 767px) {
-    header h1 {
-        font-size: 1.1em;
-    }
-
-    header .header-top {
-        flex-direction: column;
-        align-items: flex-start;
-        margin-bottom: 5px;
-    }
-
-    header .lang-buttons {
-        margin-top: 5px;
-        align-self: flex-end;
-    }
-
-    header nav {
-        justify-content: space-around;
-        width: 100%;
-    }
-
-    main {
-        padding: 10px;
-    }
-
-    #map {
-        height: 300px;
-    }
-
-    .directions-input-group label {
-        flex-basis: 100%;
-        margin-bottom: 4px;
-    }
-
-    .directions-input-group input[type="text"],
-    .directions-input-group select {
-        width: 100%;
-        min-width: unset;
-    }
-
-    .directions-input-group button.small-button {
-        margin-left: 0;
-        margin-top: 5px;
-        width: 100%;
-    }
-    
-    .directions-buttons {
-        flex-direction: column;
-    }
-
+    header h1 { font-size: 1.1em; }
+    header .header-top { flex-direction: column; align-items: flex-start; margin-bottom: 5px; }
+    header .lang-buttons { margin-top: 5px; align-self: flex-end; }
+    header nav { justify-content: space-around; width: 100%; }
+    main { padding: 10px; }
+    #map { height: 300px; }
+    .directions-buttons { flex-direction: column; }
 }
-/* css/bousaion.css の末尾に追加 */
 
-/* 選択中のフィルタボタンのスタイル（基本） */
+/* フィルタボタンの選択状態 */
 .filter-buttons-grid button.active-filter {
-    background-color: #ffffff !important; /* 背景を白に */
-    color: #dc3545 !important;            /* 文字をテーマカラー（赤）に */
-    border: 2px solid #dc3545;            /* 太い枠線 */
+    background-color: #ffffff !important;
+    color: #dc3545 !important;
+    border: 2px solid #dc3545;
     font-weight: bold;
-    transform: scale(1.05);               /* 少し大きくする */
+    transform: scale(1.05);
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
-/* 「全て表示」ボタンの選択状態 */
 .filter-buttons-grid button#filterAllDisasters.active-filter {
     background-color: #ffffff !important;
-    color: #e0a800 !important;            /* 文字を黄色（オレンジ寄り）に */
+    color: #e0a800 !important;
     border: 2px solid #ffc107;
 }
 
-/* 「非表示」ボタンの選択状態 */
 .filter-buttons-grid button#filterHideAllDisasters.active-filter {
     background-color: #ffffff !important;
-    color: #5a6268 !important;            /* 文字をグレーに */
+    color: #5a6268 !important;
     border: 2px solid #6c757d;
+}
+
+/* ハザードマップ凡例用 */
+.hazard-legend-item {
+    display: none; /* 初期状態は非表示 */
+}
+
+.hazard-box {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    border: 1px solid #999;
+}
+
+/* 津波・危険エリア用（赤色） */
+.tsunami-zone {
+    background-color: rgba(255, 0, 0, 0.35);
+    border-color: #ff0000;
 }
