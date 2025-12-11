@@ -29,7 +29,6 @@
       </div>
     </div>
     <nav>
-      <!-- 修正箇所: リンク先を bousaiJ.html から index.html に変更しました -->
       <button onclick="location.href='index.html'" id="switchMode">通常モードに切替</button>
     </nav>
     <p class="alert" id="alertMsg">現在、防災モードが有効です。避難情報と災害警報にご注意ください。</p>
@@ -63,7 +62,6 @@
         <button onclick="calcRouteDisaster()" id="getDirectionsButton">経路を検索</button>
         <button onclick="clearDirectionsDisaster()" id="clearDirectionsButton">経路をクリア</button>
       </div>
-      <!-- Google Maps ナビゲーションボタン -->
       <div class="directions-buttons">
         <button onclick="openGoogleMapsNaviDisaster()" id="googleMapsNaviButtonDisaster">🗺️ Googleマップでナビ開始</button>
       </div>
@@ -73,11 +71,10 @@
     <section class="filter-section">
       <h2 id="disasterFilterTitle">災害タイプで絞り込む</h2>
       <div class="filter-buttons-grid">
-        <button onclick="filterDisasterMarkers(['fire_station', 'school', 'community_center'], 'fire')" id="filterFireShelters">火災避難所</button>
-        <button onclick="filterDisasterMarkers(['community_center', 'school'], 'tsunami')" id="filterTsunamiShelters">津波避難所</button>
-        <button onclick="filterDisasterMarkers(['community_center', 'school'], 'volcano')" id="filterVolcanoShelters">火山噴火避難所</button>
-        <button onclick="filterDisasterMarkers(['community_center', 'school', 'hospital'], 'hurricane')" id="filterHurricaneShelters">ハリケーン避難所</button>
-        <button onclick="filterDisasterMarkers(['community_center', 'school', 'fire_station', 'hospital'], 'all')" id="filterAllDisasters">全て表示</button>
+        <button onclick="filterDisasterMarkers([], 'tsunami')" id="filterTsunamiShelters">津波避難所 (ハザードマップ表示)</button>
+        <button onclick="filterDisasterMarkers([], 'volcano')" id="filterVolcanoShelters">火山避難所 (ハワイ島のみ)</button>
+        <button onclick="filterDisasterMarkers([], 'hurricane')" id="filterHurricaneShelters">ハリケーン避難所</button>
+        <button onclick="filterDisasterMarkers([], 'all')" id="filterAllDisasters">全て表示</button>
         <button onclick="filterDisasterMarkers([], 'hideAll')" id="filterHideAllDisasters">非表示</button>
       </div>
     </section>
@@ -87,8 +84,6 @@
       <ul>
        <li id="shelter"></li>
        <li id="disasterInfo1"></li>
-       <li id="disasterInfo2"></li>
-       <li id="disasterInfo3"></li>
       </ul>
     </section>
 
@@ -96,7 +91,11 @@
       <h2 id="legendTitle">ピクトグラム凡例</h2>
       <ul>
        <li id="legendHospital"></li>
-       <li id="legendOtherShelter"></li> <!-- 統合された凡例 -->
+       <li id="legendOtherShelter"></li>
+       <li id="legendHazard" class="hazard-legend-item">
+           <span class="hazard-box tsunami-zone"></span> 
+           <span>津波浸水想定区域（危険エリア）</span>
+       </li>
       </ul>
     </section>
 
@@ -107,8 +106,11 @@
   </footer>
 
   <script src="js/langJ.js"></script>
+  <!-- ★ここでデータファイルを読み込む -->
+  <script src="js/tsunami_data.js"></script>
   <script src="js/map_disasterJ.js"></script>
-  <!-- API Key変更 -->
+  
+  <!-- API Keyはご自身のものを使用してください -->
   <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDO4wBgHnvBDQA8-xO3JfkLflLi9vwpY8U&callback=initMapDisaster&libraries=places,marker,routes,geometry"></script>
 
 </body>
