@@ -55,7 +55,7 @@ async function initMapTour() {
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
-        mapId: "40ca9d23eb95bcf78932c38e", // ベクターマップID
+        mapId: "40ca9d23eb95bcf78932c38e",
         gestureHandling: 'greedy',
         clickableIcons: false,
     });
@@ -98,7 +98,6 @@ async function initMapTour() {
                 searchPlacesTour(pos, 2000, searchTypes);
             },
             async (error) => {
-                console.error("Geolocation failed:", error);
                 const initialCenter = mapTour.getCenter();
                 userCurrentLocationTour = initialCenter;
                 drawUserLocationCircle(initialCenter);
@@ -128,7 +127,6 @@ async function initMapTour() {
         clearTourMarkers();
         allTourPlaces = [];
         processedPlaceIds.clear();
-        
         addHisSpecialMarkers();
         searchPlacesTour(place.geometry.location, 2000, searchTypes);
     });
@@ -146,7 +144,7 @@ async function initMapTour() {
             addHisSpecialMarkers();
             searchPlacesTour(userCurrentLocationTour, 2000, searchTypes);
             drawUserLocationCircle(userCurrentLocationTour);
-        } else { console.warn('現在地が取得できませんでした。'); }
+        }
     });
     mapTour.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(returnButton);
 
@@ -164,45 +162,34 @@ async function initMapTour() {
     new Autocomplete(endInputTour, { types: ['geocode', 'establishment'] }).bindTo('bounds', mapTour);
 }
 
-// HIS関連マーカーを表示（目立つように変更）
+// HIS関連マーカー
 async function addHisSpecialMarkers() {
     const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
-    
     hisSpecialPlaces.forEach(hisPlace => {
-        // HIS用の非常に目立つピンを作成
         const pin = new PinElement({
-            background: "#0055aa", // HISブルー
-            borderColor: "#ffcc00", // 黄色の枠線で強調
-            glyph: "HIS", // テキストを表示
+            background: "#0055aa",
+            borderColor: "#ffcc00",
+            glyph: "HIS",
             glyphColor: "white",
-            scale: 1.5 // サイズを大きく
+            scale: 1.0 // 縮小
         });
 
         const marker = new AdvancedMarkerElement({
             map: mapTour,
             position: hisPlace.location,
             title: hisPlace.name,
-            content: pin.element
+            content: pin.element,
+            zIndex: 9999,
+            collisionBehavior: 'REQUIRED_AND_HIDES_OPTIONAL'
         });
-
         marker.placeTypes = ["HIS"];
-        // マーカーを常に最前面に
-        marker.zIndex = 9999;
 
-        const infoContent = `
-            <div style="font-family: sans-serif; padding: 5px;">
-                <h3 style="color: #0055aa; margin: 0 0 5px 0;">${hisPlace.name}</h3>
-                <p style="margin: 5px 0; font-weight:bold; color: #e4001b;">${hisPlace.type === 'HIS_STORE' ? 'HIS店舗' : 'HIS提携店'}</p>
-                <p style="font-size: 13px;">${hisPlace.desc}</p>
-                <button onclick="document.getElementById('endTour').value = '${hisPlace.name}'" style="margin-top:5px; padding: 5px 10px; background:#0055aa; color:white; border:none; border-radius:4px; cursor:pointer;">ここへ行く</button>
-            </div>
-        `;
+        const infoContent = `<div style="font-family: sans-serif; padding: 5px;"><h3 style="color: #0055aa; margin: 0 0 5px 0;">${hisPlace.name}</h3><p style="margin: 5px 0; font-weight:bold; color: #e4001b;">${hisPlace.type === 'HIS_STORE' ? 'HIS店舗' : 'HIS提携店'}</p><p style="font-size: 13px;">${hisPlace.desc}</p><button onclick="document.getElementById('endTour').value = '${hisPlace.name}'" style="margin-top:5px; padding: 5px 10px; background:#0055aa; color:white; border:none; border-radius:4px; cursor:pointer;">ここへ行く</button></div>`;
 
         marker.addListener('click', () => {
             tourInfoWindow.setContent(infoContent);
             tourInfoWindow.open(mapTour, marker);
         });
-
         tourMarkers.push(marker);
     });
 }
@@ -240,10 +227,11 @@ async function createTourMarker(place) {
     if (!place.geometry || !place.geometry.location) return;
     const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
     
+    // アイコンサイズを縮小
     const icon = document.createElement('img');
     icon.src = place.icon;
-    icon.style.width = '25px';
-    icon.style.height = '25px';
+    icon.style.width = '24px'; 
+    icon.style.height = '24px';
     
     let categoryName = 'その他';
     if (place.types.includes('tourist_attraction')) { categoryName = '観光名所'; } 
@@ -256,7 +244,9 @@ async function createTourMarker(place) {
         map: mapTour, 
         position: place.geometry.location, 
         title: place.name, 
-        content: icon 
+        content: icon,
+        // ★重なったピンを自動で隠す設定
+        collisionBehavior: 'OPTIONAL_AND_HIDES_LOWER_PRIORITY' 
     });
     
     marker.placeTypes = place.types;
@@ -306,22 +296,16 @@ function filterByRatingTour(minRating, maxRating) {
     clearTourMarkers();
     for (const place of allTourPlaces) {
         const isFoodOrCafe = place.types.includes('restaurant') || place.types.includes('cafe');
-        
-        // 数値としての評価が存在するか厳密にチェック
         const hasRating = typeof place.rating === 'number' && !isNaN(place.rating);
-        
         if (isFoodOrCafe) {
-            // "全ての評価" モード (-1, -1) の場合は、評価有無に関わらず全て表示
             if (minRating === -1 && maxRating === -1) {
                 createTourMarker(place);
             }
-            // 特定の評価範囲を指定された場合
             else if (hasRating) {
                 if (place.rating >= minRating && place.rating < maxRating) {
                     createTourMarker(place);
                 }
             }
-            // 評価なし(hasRating=false)は、指定範囲検索モードでは表示しない
         }
     }
 }
@@ -330,27 +314,13 @@ function calcRouteTour() {
     const start = document.getElementById('startTour').value;
     const end = document.getElementById('endTour').value;
     const travelMode = document.getElementById('travelModeTour').value;
-
-    if (!start || !end) {
-        alert('出発地と目的地を入力してください。');
-        return;
-    }
-
-    const request = {
-        origin: start,
-        destination: end,
-        travelMode: google.maps.TravelMode[travelMode]
-    };
-
+    if (!start || !end) { alert('出発地と目的地を入力してください。'); return; }
+    const request = { origin: start, destination: end, travelMode: google.maps.TravelMode[travelMode] };
     tourDirectionsService.route(request, (result, status) => {
         if (status === 'OK') {
             tourDirectionsRenderer.setDirections(result);
-            // 音声案内（Googleマップ連携）ボタンを表示
             document.getElementById('googleMapsNaviButtonTour').style.display = 'inline-block';
-        } else {
-            console.error('Directions request failed:', status, result);
-            alert('経路が見つかりませんでした: ' + status);
-        }
+        } else { console.error('Directions request failed:', status, result); alert('経路が見つかりませんでした: ' + status); }
     });
 }
 
@@ -362,50 +332,25 @@ function clearDirectionsTour() {
     document.getElementById('googleMapsNaviButtonTour').style.display = 'none';
 }
 
-// Googleマップでナビを開始する関数
 function openGoogleMapsNaviTour() {
     const start = document.getElementById('startTour').value;
     const end = document.getElementById('endTour').value;
     const travelMode = document.getElementById('travelModeTour').value.toLowerCase();
-
-    if (!end) {
-        alert("目的地が設定されていません。");
-        return;
-    }
-
-    // Google Maps URL Schemeを使用
-    // api=1
-    // destination: 目的地
-    // origin: 出発地（指定がなければ現在地になるが、入力されていれば使う）
-    // travelmode: driving, walking, bicycling, transit
-    
+    if (!end) { alert("目的地が設定されていません。"); return; }
     let url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(end)}&travelmode=${travelMode}`;
-    
-    if (start) {
-        url += `&origin=${encodeURIComponent(start)}`;
-    }
-
+    if (start) { url += `&origin=${encodeURIComponent(start)}`; }
     window.open(url, '_blank');
 }
 
 function getCurrentLocationForDirectionsTour(inputId) {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition((position) => {
-            const pos = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude
-            };
+            const pos = { lat: position.coords.latitude, lng: position.coords.longitude };
             tourGeocoder.geocode({ 'location': pos }, (results, status) => {
                 if (status === 'OK' && results[0]) {
                     document.getElementById(inputId).value = results[0].formatted_address;
-                } else {
-                    document.getElementById(inputId).value = `${pos.lat}, ${pos.lng}`;
-                }
+                } else { document.getElementById(inputId).value = `${pos.lat}, ${pos.lng}`; }
             });
-        }, (error) => {
-            console.warn("現在地を取得できませんでした。");
-        });
-    } else {
-        console.warn("お使いのブラウザはGeolocationをサポートしていません。");
+        }, () => console.warn("現在地取得エラー"));
     }
 }
