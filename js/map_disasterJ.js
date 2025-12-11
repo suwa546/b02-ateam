@@ -14,7 +14,7 @@ let exclusionPolygons = [];
 
 // ■ 固定避難所・病院リスト
 const FIXED_SHELTER_DATA = [
-    // ... (前回のリストと同じ内容) ...
+    // --- オアフ島：主要病院 ---
     { name: "The Queen's Medical Center", lat: 21.3072, lng: -157.8556, island: "Oahu", type: "hospital" },
     { name: "Straub Medical Center", lat: 21.3045, lng: -157.8496, island: "Oahu", type: "hospital" },
     { name: "Kapiolani Medical Center", lat: 21.3015, lng: -157.8396, island: "Oahu", type: "hospital" },
@@ -22,11 +22,13 @@ const FIXED_SHELTER_DATA = [
     { name: "Adventist Health Castle", lat: 21.3853, lng: -157.7562, island: "Oahu", type: "hospital" },
     { name: "Pali Momi Medical Center", lat: 21.3860, lng: -157.9427, island: "Oahu", type: "hospital" },
     { name: "The Queen's Medical Center - West Oahu", lat: 21.3486, lng: -158.0305, island: "Oahu", type: "hospital" },
+    // --- オアフ島：主要避難所 ---
     { name: "Hawaii Convention Center", lat: 21.2905, lng: -157.8365, island: "Oahu", type: "shelter" },
     { name: "Neal S. Blaisdell Center", lat: 21.3000, lng: -157.8500, island: "Oahu", type: "shelter" },
     { name: "Leilehua High School", lat: 21.5000, lng: -158.0700, island: "Oahu", type: "shelter" },
     { name: "Farrington High School", lat: 21.3280, lng: -157.8730, island: "Oahu", type: "shelter" },
     { name: "McKinley High School", lat: 21.2980, lng: -157.8470, island: "Oahu", type: "shelter" },
+    // --- ハワイ島 ---
     { name: "Hilo Medical Center", lat: 19.7150, lng: -155.1080, island: "Hawaii", type: "hospital" },
     { name: "Kona Community Hospital", lat: 19.5330, lng: -155.9330, island: "Hawaii", type: "hospital" },
     { name: "Pahoa Community Center", lat: 19.5033, lng: -154.9535, island: "Hawaii", type: "shelter" },
@@ -37,11 +39,13 @@ const FIXED_SHELTER_DATA = [
     { name: "Kealakehe High School", lat: 19.6675, lng: -156.0120, island: "Hawaii", type: "shelter" },
     { name: "Ka'u District Gym", lat: 19.1950, lng: -155.4750, island: "Hawaii", type: "shelter" },
     { name: "Honokaa High School", lat: 20.0760, lng: -155.4650, island: "Hawaii", type: "shelter" },
+    // --- マウイ島 ---
     { name: "Maui Memorial Medical Center", lat: 20.8850, lng: -156.4850, island: "Maui", type: "hospital" },
     { name: "Maui High School", lat: 20.8753, lng: -156.4633, island: "Maui", type: "shelter" },
     { name: "Baldwin High School", lat: 20.8833, lng: -156.4917, island: "Maui", type: "shelter" },
     { name: "Lahaina Civic Center", lat: 20.9100, lng: -156.6800, island: "Maui", type: "shelter" },
     { name: "King Kekaulike High School", lat: 20.8500, lng: -156.3300, island: "Maui", type: "shelter" },
+    // --- カウアイ島 ---
     { name: "Wilcox Medical Center", lat: 21.9800, lng: -159.3700, island: "Kauai", type: "hospital" },
     { name: "Kauai High School", lat: 21.9700, lng: -159.3600, island: "Kauai", type: "shelter" },
     { name: "Kapaa High School", lat: 22.0800, lng: -159.3200, island: "Kauai", type: "shelter" },
@@ -68,57 +72,6 @@ function updateFilterButtonStyles(activeType) {
     }
 }
 
-// 言語切り替え時にステータス文字も更新するための関数
-function updateFilterStatusText() {
-    const statusTextElement = document.getElementById('currentFilterName');
-    const d = langDataJ[currentLang];
-    let text = "";
-    
-    switch(currentDisasterFilter) {
-        case 'tsunami': text = d.filterTsunamiShelters; break;
-        case 'volcano': text = d.filterVolcanoShelters; break;
-        case 'hurricane': text = d.filterHurricaneShelters; break;
-        case 'all': text = d.filterAllDisasters; break;
-        case 'hideAll': text = d.filterHideAllDisasters; break;
-        default: text = d.filterAllDisasters;
-    }
-    statusTextElement.textContent = text.replace(/\n/g, " "); // 改行削除
-    updateOfficialLink(); // リンクも更新
-}
-
-// 公式リンクを更新する関数
-function updateOfficialLink() {
-    const linkItem = document.getElementById('officialLinkItem');
-    const d = langDataJ[currentLang];
-    let url = "";
-    let title = "";
-
-    switch(currentDisasterFilter) {
-        case 'tsunami': 
-            url = officialLinks.tsunami; 
-            title = d.linkTitleTsunami; 
-            break;
-        case 'volcano': 
-            url = officialLinks.volcano; 
-            title = d.linkTitleVolcano; 
-            break;
-        case 'hurricane': 
-            url = officialLinks.hurricane; 
-            title = d.linkTitleHurricane; 
-            break;
-        default: 
-            url = officialLinks.all; 
-            title = d.linkTitleAll; 
-            break;
-    }
-
-    if (currentDisasterFilter === 'hideAll') {
-        linkItem.innerHTML = "";
-    } else {
-        linkItem.innerHTML = `<a href="${url}" target="_blank" style="color:#007bff; text-decoration:none; font-weight:bold;">🔗 ${title}</a>`;
-    }
-}
-
 async function initMapDisaster() {
     const { Map } = await google.maps.importLibrary("maps");
     const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
@@ -126,6 +79,7 @@ async function initMapDisaster() {
     const { DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("routes");
     const { Geocoder } = await google.maps.importLibrary("geocoding");
     
+    // 初期表示：オアフ島中心
     const initialLat = 21.48; 
     const initialLon = -157.95;
     const initialZoom = 10; 
@@ -156,9 +110,9 @@ async function initMapDisaster() {
     disasterDirectionsRenderer = new DirectionsRenderer({ map: mapDisaster, panel: document.getElementById('directionsPanelDisaster') });
     disasterGeocoder = new Geocoder();
 
-    // 初期状態セット
     updateFilterButtonStyles('all');
-    updateFilterStatusText();
+    if (typeof updateFilterStatusText === 'function') updateFilterStatusText();
+    if (typeof updateInfoText === 'function') updateInfoText();
 
     function drawUserLocationCircleDisaster(center) {
         if (userLocationCircleDisaster) {
@@ -219,6 +173,7 @@ async function initMapDisaster() {
     returnButton.addEventListener('click', async () => {
         if (userCurrentLocationDisaster) {
             mapDisaster.setCenter(userCurrentLocationDisaster); mapDisaster.setZoom(14);
+            // 火山モード以外なら再検索
             if (currentDisasterFilter !== 'volcano') {
                 clearDisasterMarkers();
                 allDisasterPlaces = [];
@@ -306,15 +261,8 @@ function searchPlacesDisaster(center, radius) {
 
     if (currentDisasterFilter === 'all' || currentDisasterFilter === 'tsunami') {
         FIXED_SHELTER_DATA.forEach(data => {
-            if (currentDisasterFilter === 'tsunami') {
-                if (data.type === 'hospital') {
-                    createManualMarker(data);
-                } else if (!isLocationInsideHazardZone(data.lat, data.lng)) {
-                     createManualMarker(data);
-                }
-            } else {
-                createManualMarker(data);
-            }
+            // 津波モード時：固定リストの避難所は信頼できる場所とみなして表示（除外判定しない）
+            createManualMarker(data);
         });
     }
 }
@@ -341,7 +289,11 @@ function shouldDisplayPlace(place, filterType) {
          if (placeTypes.includes('park') || placeTypes.includes('campground') || placeTypes.includes('rv_park')) {
             return false;
         }
+        
+        // 病院は表示
         if (isHospital) return true;
+
+        // それ以外の周辺検索結果（APIデータ）はハザードマップ判定
         if (isLocationInsideHazardZone(lat, lng)) {
             return false;
         }
@@ -357,10 +309,11 @@ function filterDisasterMarkers(selectedTypes, filterType) {
     clearDisasterMarkers();
     currentDisasterFilter = filterType;
     updateFilterButtonStyles(filterType);
-    updateFilterStatusText(); // ステータス文字とリンクの更新
+    if (typeof updateFilterStatusText === 'function') updateFilterStatusText();
+    if (typeof updateInfoText === 'function') updateInfoText();
     
     const alertMsg = document.getElementById('alertMsg');
-    const hazardSection = document.getElementById('hazardSection'); // ハザードマップ凡例エリア
+    const hazardSection = document.getElementById('hazardSection');
 
     if (filterType === 'tsunami') {
         mapDisaster.data.setStyle({
@@ -373,16 +326,14 @@ function filterDisasterMarkers(selectedTypes, filterType) {
         });
         
         if (alertMsg) alertMsg.textContent = "津波避難モード: 浸水想定区域（赤色）以外の避難所・病院を表示しています。";
-        hazardSection.style.display = 'block'; // ハザードマップ凡例を表示
+        if (hazardSection) hazardSection.style.display = 'block';
 
+        // ★固定リストは常に表示（津波判定しない）
         FIXED_SHELTER_DATA.forEach(data => {
-            if (data.type === 'hospital') {
-                createManualMarker(data);
-            } else if (!isLocationInsideHazardZone(data.lat, data.lng)) {
-                createManualMarker(data);
-            }
+            createManualMarker(data);
         });
 
+        // APIデータは判定を行う
         if (allDisasterPlaces.length === 0) {
             searchPlacesDisaster(mapDisaster.getCenter(), 5000);
         } else {
@@ -394,10 +345,9 @@ function filterDisasterMarkers(selectedTypes, filterType) {
     else if (filterType === 'volcano') {
         mapDisaster.data.setStyle({ visible: false });
         if (alertMsg) alertMsg.textContent = "火山避難モード: ハワイ島の主要な避難所を表示しています。";
-        hazardSection.style.display = 'none';
+        if (hazardSection) hazardSection.style.display = 'none';
         
-        mapDisaster.setCenter({ lat: 19.65, lng: -155.5 });
-        mapDisaster.setZoom(9);
+        // ★修正: 地図を勝手に移動しない（setCenter/setZoom 削除）
         
         FIXED_SHELTER_DATA.forEach(data => {
             if (data.island === "Hawaii") createManualMarker(data);
@@ -406,7 +356,7 @@ function filterDisasterMarkers(selectedTypes, filterType) {
     else if (filterType === 'all' || filterType === 'hurricane') {
         mapDisaster.data.setStyle({ visible: false });
         if (alertMsg) alertMsg.textContent = "現在、防災モードが有効です。全ての避難所と病院を表示しています。";
-        hazardSection.style.display = 'none';
+        if (hazardSection) hazardSection.style.display = 'none';
 
         FIXED_SHELTER_DATA.forEach(data => createManualMarker(data));
 
@@ -420,7 +370,7 @@ function filterDisasterMarkers(selectedTypes, filterType) {
     }
     else {
         mapDisaster.data.setStyle({ visible: false });
-        hazardSection.style.display = 'none';
+        if (hazardSection) hazardSection.style.display = 'none';
     }
 }
 
