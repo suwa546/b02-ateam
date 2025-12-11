@@ -100,8 +100,6 @@ async function initMapDisaster() {
         mapDisaster.data.addGeoJson(tsunamiData);
         mapDisaster.data.setStyle({ visible: false });
         processGeoJsonToPolygons(tsunamiData);
-    } else {
-        console.warn("ハザードマップデータ(tsunamiData)が読み込まれていません。");
     }
 
     disasterPlacesService = new PlacesService(mapDisaster);
@@ -113,8 +111,8 @@ async function initMapDisaster() {
     disasterGeocoder = new Geocoder();
 
     updateFilterButtonStyles('all');
+    // ★ここ重要：初期化時にステータステキストを更新
     if (typeof updateFilterStatusText === 'function') updateFilterStatusText();
-    if (typeof updateInfoText === 'function') updateInfoText();
 
     function drawUserLocationCircleDisaster(center) {
         if (userLocationCircleDisaster) {
@@ -175,7 +173,6 @@ async function initMapDisaster() {
     returnButton.addEventListener('click', async () => {
         if (userCurrentLocationDisaster) {
             mapDisaster.setCenter(userCurrentLocationDisaster); mapDisaster.setZoom(14);
-            // モードに関わらず現在地周辺を再検索
             clearDisasterMarkers();
             allDisasterPlaces = [];
             processedDisasterPlaceIds.clear();
@@ -186,7 +183,6 @@ async function initMapDisaster() {
     mapDisaster.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(returnButton);
     
     mapDisaster.addListener('idle', () => {
-        // 全モードでアイドル時検索を有効化
         const zoomLevel = mapDisaster.getZoom();
         if (zoomLevel >= 11) {
             const newCenter = mapDisaster.getCenter();
@@ -258,18 +254,17 @@ function searchPlacesDisaster(center, radius) {
         }
     });
 
-    // 固定リストは常にチェックして表示
-    FIXED_SHELTER_DATA.forEach(data => {
-        if (currentDisasterFilter === 'tsunami') {
-            // 津波モード：病院は常に表示、その他はハザードマップ外なら表示
-            if (data.type === 'hospital' || !isLocationInsideHazardZone(data.lat, data.lng)) {
-                 createManualMarker(data);
+    if (currentDisasterFilter !== 'hideAll') {
+        FIXED_SHELTER_DATA.forEach(data => {
+            if (currentDisasterFilter === 'tsunami') {
+                if (data.type === 'hospital' || !isLocationInsideHazardZone(data.lat, data.lng)) {
+                     createManualMarker(data);
+                }
+            } else {
+                createManualMarker(data);
             }
-        } else if (currentDisasterFilter !== 'hideAll') {
-            // 火山、ハリケーン、全表示モード：すべて表示
-            createManualMarker(data);
-        }
-    });
+        });
+    }
 }
 
 function shouldDisplayPlace(place, filterType) {
@@ -303,8 +298,7 @@ function shouldDisplayPlace(place, filterType) {
 
     // 火山モード
     if (filterType === 'volcano') {
-        // ★修正: 病院も避難所も島を問わず全て表示する
-        return isHospital || isShelterCandidate;
+        return isHospital || isShelterCandidate; // 島問わずすべて表示
     }
 
     if (filterType === 'hideAll') return false;
@@ -316,8 +310,9 @@ function filterDisasterMarkers(selectedTypes, filterType) {
     clearDisasterMarkers();
     currentDisasterFilter = filterType;
     updateFilterButtonStyles(filterType);
+    
+    // ★ここ重要：フィルタ変更時にlangJ.jsのテキスト更新関数を呼び出す
     if (typeof updateFilterStatusText === 'function') updateFilterStatusText();
-    if (typeof updateInfoText === 'function') updateInfoText();
     
     const alertMsg = document.getElementById('alertMsg');
     const hazardSection = document.getElementById('hazardSection');
@@ -355,15 +350,16 @@ function filterDisasterMarkers(selectedTypes, filterType) {
     // ■ 火山モード
     else if (filterType === 'volcano') {
         mapDisaster.data.setStyle({ visible: false });
-        if (alertMsg) alertMsg.textContent = "火山避難モード: ハワイ全島の避難所と病院を表示しています。";
+        if (alertMsg) alertMsg.textContent = "火山避難モード: 全島の避難所・病院を表示しています。";
         if (hazardSection) hazardSection.style.display = 'none';
         
-        // ★修正: ハワイ島限定解除。全島の固定リストを表示。
+        // 地図移動はしない
+
+        // 全島の固定リスト表示
         FIXED_SHELTER_DATA.forEach(data => {
             createManualMarker(data);
         });
 
-        // APIデータも表示
         if (allDisasterPlaces.length === 0) {
             searchPlacesDisaster(mapDisaster.getCenter(), 5000);
         } else {
