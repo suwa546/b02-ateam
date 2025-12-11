@@ -26,15 +26,12 @@ const langDataJ = {
         currentLocationButton: "現在地",
         googleMapsNaviButton: "🗺️ Googleマップでナビ開始",
         disasterFilterTitle: "災害タイプで絞り込む",
-        filterFireShelters: "火災避難所 (沿岸10km以内)",
-        filterTsunamiShelters: "津波避難所 (沿岸10km以遠)",
-        filterVolcanoShelters: "火山噴火避難所",
-        filterHurricaneShelters: "ハリケーン避難所 (沿岸5km以遠)",
+        filterTsunamiShelters: "津波避難所 (ハザードマップ表示)",
+        filterVolcanoShelters: "火山避難所 (ハワイ島のみ)",
+        filterHurricaneShelters: "ハリケーン避難所",
         filterAllDisasters: "全て表示",
         filterHideAllDisasters: "非表示",
         disasterInfo1: "",
-        disasterInfo2: "",
-        disasterInfo3: ""
     },
     en: {
         headerTitle: "Disaster Prevention Mode",
@@ -59,24 +56,18 @@ const langDataJ = {
         currentLocationButton: "Current Location",
         googleMapsNaviButton: "🗺️ Start Navigation in Google Maps",
         disasterFilterTitle: "Filter by Disaster Type",
-        filterFireShelters: "Fire Shelters (< 10km from coast)",
-        filterTsunamiShelters: "Tsunami Shelters (> 10km from coast)",
-        filterVolcanoShelters: "Volcano Shelters",
-        filterHurricaneShelters: "Hurricane Shelters (> 5km from coast)",
+        filterTsunamiShelters: "Tsunami Shelters (with Hazard Map)",
+        filterVolcanoShelters: "Volcano Shelters (Big Island Only)",
+        filterHurricaneShelters: "Hurricane Shelters",
         filterAllDisasters: "Show All",
         filterHideAllDisasters: "Hide All",
         disasterInfo1: "",
-        disasterInfo2: "",
-        disasterInfo3: ""
     }
 };
 
 function setLangJ(lang) {
     currentLang = lang;
     updateContentJ();
-    if (typeof updateDisasterInfo === 'function') {
-        updateDisasterInfo(currentDisasterFilter || 'all');
-    }
 }
 
 function updateContentJ() {
@@ -111,8 +102,6 @@ function updateContentJ() {
     const disasterFilterTitle = document.getElementById('disasterFilterTitle');
     if (disasterFilterTitle) disasterFilterTitle.textContent = langDataJ[currentLang].disasterFilterTitle;
     
-    const filterFireShelters = document.getElementById('filterFireShelters');
-    if (filterFireShelters) filterFireShelters.textContent = langDataJ[currentLang].filterFireShelters;
     const filterTsunamiShelters = document.getElementById('filterTsunamiShelters');
     if (filterTsunamiShelters) filterTsunamiShelters.textContent = langDataJ[currentLang].filterTsunamiShelters;
     const filterVolcanoShelters = document.getElementById('filterVolcanoShelters');
@@ -155,7 +144,4 @@ function updateContentJ() {
 
 document.addEventListener('DOMContentLoaded', () => {
     updateContentJ();
-    if (typeof updateDisasterInfo === 'function') {
-        updateDisasterInfo('all');
-    }
 });
